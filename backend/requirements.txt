@@ -1,0 +1,30 @@
+# Web framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+
+# Database
+sqlalchemy[asyncio]>=2.0.30
+asyncpg>=0.29.0
+alembic>=1.13.0
+
+# pgvector (for production)
+pgvector>=0.3.0
+
+# Auth
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.0.0,<4.1.0
+
+# Settings
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+pydantic[email]>=2.7.0
+
+# File upload
+python-multipart>=0.0.9
+
+# Testing
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
+httpx>=0.27.0
+aiosqlite>=0.20.0
