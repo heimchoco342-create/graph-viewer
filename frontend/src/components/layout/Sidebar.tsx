@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { WngLogo } from './WngLogo'
 
 export interface SidebarMenuItem {
   label: string
@@ -31,10 +32,15 @@ export function Sidebar({
       }`}
     >
       <div className="flex items-center justify-between p-4 border-b border-border">
-        {!collapsed && (
-          <h1 className="text-xl font-bold text-text-primary leading-tight">
-            WNG
-          </h1>
+        {!collapsed ? (
+          <div className="flex items-center gap-2">
+            <WngLogo size={28} />
+            <h1 className="text-xl font-bold text-text-primary leading-tight">
+              WNG
+            </h1>
+          </div>
+        ) : (
+          <WngLogo size={24} />
         )}
         <button
           onClick={() => setCollapsed((c) => !c)}
