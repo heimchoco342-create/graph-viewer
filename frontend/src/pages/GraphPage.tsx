@@ -25,23 +25,62 @@ function shortLabel(name: string): string {
   return parts[parts.length - 1];
 }
 
-function applyDagreLayout(
+export function applyDagreLayout(
   nodes: Node[],
   edges: Edge[],
   direction: 'TB' | 'LR' = 'TB',
 ): Node[] {
+  // Separate connected vs orphan (no edges) nodes
+  const connectedIds = new Set<string>();
+  edges.forEach((edge) => {
+    connectedIds.add(edge.source);
+    connectedIds.add(edge.target);
+  });
+
+  const connectedNodes = nodes.filter((n) => connectedIds.has(n.id));
+  const orphanNodes = nodes.filter((n) => !connectedIds.has(n.id));
+
+  // Layout connected nodes with Dagre
   const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
   g.setGraph({ rankdir: direction, nodesep: 30, ranksep: 60 });
 
-  nodes.forEach((node) => g.setNode(node.id, { width: 44, height: 44 }));
+  connectedNodes.forEach((node) => g.setNode(node.id, { width: 44, height: 44 }));
   edges.forEach((edge) => g.setEdge(edge.source, edge.target));
 
   Dagre.layout(g);
 
-  return nodes.map((node) => {
+  const layoutedConnected = connectedNodes.map((node) => {
     const pos = g.node(node.id);
     return { ...node, position: { x: pos.x - 22, y: pos.y - 22 } };
   });
+
+  // Find bounding box of connected graph to place orphans above-left
+  let minX = 0;
+  let minY = 0;
+  if (layoutedConnected.length > 0) {
+    minX = Math.min(...layoutedConnected.map((n) => n.position.x));
+    minY = Math.min(...layoutedConnected.map((n) => n.position.y));
+  }
+
+  // Place orphan nodes in a grid in the top-left zone
+  const ORPHAN_COLS = 6;
+  const ORPHAN_GAP_X = 70;
+  const ORPHAN_GAP_Y = 70;
+  const ORPHAN_OFFSET_Y = minY - 150; // above the main graph
+
+  const layoutedOrphans = orphanNodes.map((node, i) => {
+    const col = i % ORPHAN_COLS;
+    const row = Math.floor(i / ORPHAN_COLS);
+    return {
+      ...node,
+      position: {
+        x: minX + col * ORPHAN_GAP_X,
+        y: ORPHAN_OFFSET_Y - row * ORPHAN_GAP_Y,
+      },
+    };
+  });
+
+  return [...layoutedOrphans, ...layoutedConnected];
 }
 
 function toFlowNodes(graphNodes: { id: string; name: string; type: string }[]): Node[] {
@@ -164,7 +203,9 @@ export function GraphPage() {
 
   const handlePaneClick = useCallback(() => {
     setFocusedNodeId(null);
-  }, []);
+    setSelectedNode(null);
+    setSelectedEdge(null);
+  }, [setSelectedNode, setSelectedEdge]);
 
   const handleDownloadSubgraph = useCallback(() => {
     if (!selectedNode) return;
