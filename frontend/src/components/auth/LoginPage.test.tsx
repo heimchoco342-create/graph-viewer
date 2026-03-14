@@ -4,7 +4,7 @@ import { LoginPage } from './LoginPage'
 describe('LoginPage', () => {
   it('renders login form', () => {
     render(<LoginPage />)
-    expect(screen.getByText('Knowledge Graph')).toBeInTheDocument()
+    expect(screen.getByText('WNG')).toBeInTheDocument()
     expect(screen.getByText('이메일')).toBeInTheDocument()
     expect(screen.getByText('비밀번호')).toBeInTheDocument()
   })

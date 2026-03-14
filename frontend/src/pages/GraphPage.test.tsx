@@ -48,7 +48,7 @@ describe('GraphPage', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText('그래프 뷰어')).toBeInTheDocument();
+    expect(screen.getAllByText('WNG').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('+ 노드')).toBeInTheDocument();
     expect(screen.getByText('+ 엣지')).toBeInTheDocument();
   });

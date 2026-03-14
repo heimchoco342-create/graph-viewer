@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MCP (Model Context Protocol) server for Graph Viewer.
+"""MCP (Model Context Protocol) server for WNG.
 
 Exposes graph CRUD, search, path-finding, and K8s import as MCP tools.
 Communicates via JSON-RPC 2.0 over stdio.
@@ -10,9 +10,9 @@ Usage:
 Configure in Claude Desktop / claude_desktop_config.json:
     {
       "mcpServers": {
-        "graph-viewer": {
+        "wng": {
           "command": "python3",
-          "args": ["/path/to/graph-viewer/backend/mcp_server.py"],
+          "args": ["/path/to/wng/backend/mcp_server.py"],
           "env": {
             "DATABASE_URL": "postgresql+asyncpg://postgres:postgres@localhost:5432/graphviewer"
           }
@@ -30,7 +30,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
-logger = logging.getLogger("mcp-graph-viewer")
+logger = logging.getLogger("mcp-wng")
 
 # ── Tool definitions ─────────────────────────────────────────
 
@@ -368,7 +368,7 @@ async def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Any:
 # ── MCP Protocol (JSON-RPC 2.0 over stdio) ──────────────────
 
 SERVER_INFO = {
-    "name": "graph-viewer",
+    "name": "wng",
     "version": "1.0.0",
 }
 
@@ -448,7 +448,7 @@ async def handle_request(request: dict) -> dict:
 
 async def main():
     """Main loop: read JSON-RPC messages from stdin, write responses to stdout."""
-    logger.info("Graph Viewer MCP server starting...")
+    logger.info("WNG MCP server starting...")
 
     reader = asyncio.StreamReader()
     protocol = asyncio.StreamReaderProtocol(reader)

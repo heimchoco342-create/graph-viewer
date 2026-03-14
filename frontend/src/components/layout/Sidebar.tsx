@@ -33,7 +33,7 @@ export function Sidebar({
       <div className="flex items-center justify-between p-4 border-b border-border">
         {!collapsed && (
           <h1 className="text-xl font-bold text-text-primary leading-tight">
-            Knowledge Graph
+            WNG
           </h1>
         )}
         <button

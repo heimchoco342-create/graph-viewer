@@ -8,7 +8,7 @@ from app.routers import auth, graph, path, ingestion, k8s
 
 settings = get_settings()
 
-app = FastAPI(title="Graph Viewer API", version="0.1.0")
+app = FastAPI(title="WNG API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

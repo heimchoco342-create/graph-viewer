@@ -1,4 +1,4 @@
-# Graph Viewer - Knowledge Graph Map
+# WNG (WorksNodeGraph)
 
 Interactive knowledge graph visualization and management tool. Supports organizational entities (person, team, project, tech, system, document) and **Kubernetes resources** (Pod, Service, Deployment, DaemonSet, StatefulSet, ConfigMap, Secret, Ingress, Namespace, Node, PVC, CronJob, Job, ReplicaSet, HPA).
 
@@ -97,9 +97,9 @@ python3 backend/mcp_server.py
 ```json
 {
   "mcpServers": {
-    "graph-viewer": {
+    "wng": {
       "command": "python3",
-      "args": ["/path/to/graph-viewer/backend/mcp_server.py"],
+      "args": ["/path/to/wng/backend/mcp_server.py"],
       "env": {
         "DATABASE_URL": "postgresql+asyncpg://postgres:postgres@localhost:5432/graphviewer"
       }
@@ -138,7 +138,7 @@ cd frontend && npx vitest run
 ## Project Structure
 
 ```
-graph-viewer/
+wng/
 ├── frontend/src/
 │   ├── components/
 │   │   ├── graph/       # GraphCanvas, CircleNode, NodeDetail, EdgeDetail

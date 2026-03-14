@@ -246,7 +246,7 @@ export function GraphPage() {
   return (
     <AppLayout sidebar={<Sidebar menuItems={menuItems} onMenuClick={handleMenuClick} />}>
       <header className="flex items-center justify-between px-4 py-2 border-b border-border bg-bg-secondary shrink-0 whitespace-nowrap">
-        <h2 className="text-base font-semibold text-text-primary">그래프 뷰어</h2>
+        <h2 className="text-base font-semibold text-text-primary">WNG</h2>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowNodeForm(true)}

@@ -320,7 +320,7 @@ async def test_handle_request_initialize():
         "method": "initialize",
         "params": {},
     })
-    assert response["result"]["serverInfo"]["name"] == "graph-viewer"
+    assert response["result"]["serverInfo"]["name"] == "wng"
     assert "tools" in response["result"]["capabilities"]
 
 

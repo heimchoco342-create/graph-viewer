@@ -23,7 +23,7 @@ describe('LoginPage', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText('Knowledge Graph')).toBeInTheDocument();
+    expect(screen.getByText('WNG')).toBeInTheDocument();
     expect(screen.getByText('로그인')).toBeInTheDocument();
     expect(screen.getByText('회원가입')).toBeInTheDocument();
   });

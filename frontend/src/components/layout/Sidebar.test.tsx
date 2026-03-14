@@ -4,7 +4,7 @@ import { Sidebar } from './Sidebar'
 describe('Sidebar', () => {
   it('renders logo text', () => {
     render(<Sidebar />)
-    expect(screen.getByText('Knowledge Graph')).toBeInTheDocument()
+    expect(screen.getByText('WNG')).toBeInTheDocument()
   })
 
   it('renders default menu items', () => {
@@ -25,7 +25,7 @@ describe('Sidebar', () => {
   it('collapses when toggle button is clicked', () => {
     render(<Sidebar />)
     fireEvent.click(screen.getByLabelText('메뉴 접기'))
-    expect(screen.queryByText('Knowledge Graph')).not.toBeInTheDocument()
+    expect(screen.queryByText('WNG')).not.toBeInTheDocument()
     expect(screen.queryByText('그래프')).not.toBeInTheDocument()
     expect(screen.getByText('🔗')).toBeInTheDocument()
   })
@@ -34,7 +34,7 @@ describe('Sidebar', () => {
     render(<Sidebar />)
     fireEvent.click(screen.getByLabelText('메뉴 접기'))
     fireEvent.click(screen.getByLabelText('메뉴 펼치기'))
-    expect(screen.getByText('Knowledge Graph')).toBeInTheDocument()
+    expect(screen.getByText('WNG')).toBeInTheDocument()
     expect(screen.getByText('그래프')).toBeInTheDocument()
   })
 

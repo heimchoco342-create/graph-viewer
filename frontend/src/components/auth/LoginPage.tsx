@@ -11,7 +11,7 @@ export function LoginPage({ onSubmit, onRegisterClick }: LoginPageProps) {
     <div className="min-h-screen flex items-center justify-center bg-bg-primary">
       <div className="w-full max-w-md rounded-xl bg-bg-secondary border border-border p-8">
         <h1 className="text-2xl font-bold text-text-primary text-center mb-6">
-          Knowledge Graph
+          WNG
         </h1>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <Input
