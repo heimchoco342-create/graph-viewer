@@ -16,6 +16,7 @@ const MENU_ITEMS = [
   { label: '그래프', icon: '🔗' },
   { label: '업로드', icon: '📤' },
   { label: '탐색', icon: '🔍' },
+  { label: '로그', icon: '📋' },
   { label: '도움말', icon: '❓' },
 ];
 
@@ -23,6 +24,7 @@ const ROUTES: Record<string, string> = {
   '그래프': '/',
   '업로드': '/upload',
   '탐색': '/query',
+  '로그': '/logs',
   '도움말': '/help',
 };
 
