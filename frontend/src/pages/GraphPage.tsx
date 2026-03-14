@@ -166,6 +166,46 @@ export function GraphPage() {
     setFocusedNodeId(null);
   }, []);
 
+  const handleDownloadSubgraph = useCallback(() => {
+    if (!selectedNode) return;
+
+    // BFS: collect all downstream nodes from selectedNode
+    const visitedNodeIds = new Set<string>();
+    const queue = [selectedNode.id];
+    visitedNodeIds.add(selectedNode.id);
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      for (const edge of graphEdges) {
+        if (edge.source_id === current && !visitedNodeIds.has(edge.target_id)) {
+          visitedNodeIds.add(edge.target_id);
+          queue.push(edge.target_id);
+        }
+      }
+    }
+
+    const subNodes = graphNodes.filter((n) => visitedNodeIds.has(n.id));
+    const subEdges = graphEdges.filter(
+      (e) => visitedNodeIds.has(e.source_id) && visitedNodeIds.has(e.target_id),
+    );
+
+    const payload = {
+      root: selectedNode.name,
+      exported_at: new Date().toISOString(),
+      nodes: subNodes,
+      edges: subEdges,
+      summary: { node_count: subNodes.length, edge_count: subEdges.length },
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `subgraph-${shortLabel(selectedNode.name)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [selectedNode, graphNodes, graphEdges]);
+
   const handleNodeFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -255,12 +295,20 @@ export function GraphPage() {
             />
           )}
           {selectedNode && (
-            <button
-              onClick={() => void deleteNode(selectedNode.id)}
-              className="text-danger text-sm hover:underline"
-            >
-              노드 삭제
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleDownloadSubgraph}
+                className="text-accent text-sm hover:underline"
+              >
+                서브그래프 다운로드
+              </button>
+              <button
+                onClick={() => void deleteNode(selectedNode.id)}
+                className="text-danger text-sm hover:underline"
+              >
+                노드 삭제
+              </button>
+            </div>
           )}
           {selectedEdge && (
             <EdgeDetail
