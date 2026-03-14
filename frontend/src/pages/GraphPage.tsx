@@ -12,6 +12,7 @@ import { Modal } from '../components/ui/Modal';
 import { useGraphStore } from '../store/graphStore';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { NODE_TYPE_COLORS } from '../constants/nodeTypes';
 
 function toFlowNodes(graphNodes: { id: string; name: string; type: string }[]): Node[] {
   return graphNodes.map((n, i) => ({
@@ -19,6 +20,12 @@ function toFlowNodes(graphNodes: { id: string; name: string; type: string }[]): 
     position: { x: (i % 5) * 200, y: Math.floor(i / 5) * 150 },
     data: { label: n.name },
     type: 'default',
+    style: {
+      background: NODE_TYPE_COLORS[n.type] ?? '#6b7280',
+      color: '#fff',
+      borderRadius: 8,
+      border: 'none',
+    },
   }));
 }
 

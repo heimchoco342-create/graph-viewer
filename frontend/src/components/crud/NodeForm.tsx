@@ -1,6 +1,7 @@
 import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
 import { Button } from '../ui/Button'
+import { NODE_TYPE_GROUPS } from '../../constants/nodeTypes'
 
 export interface NodeFormData {
   label?: string
@@ -14,15 +15,6 @@ export interface NodeFormProps {
   onCancel?: () => void
 }
 
-const nodeTypeOptions = [
-  { value: 'person', label: 'Person' },
-  { value: 'team', label: 'Team' },
-  { value: 'project', label: 'Project' },
-  { value: 'tech', label: 'Tech' },
-  { value: 'system', label: 'System' },
-  { value: 'document', label: 'Document' },
-]
-
 export function NodeForm({ initialData, onSubmit, onCancel }: NodeFormProps) {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
@@ -34,7 +26,7 @@ export function NodeForm({ initialData, onSubmit, onCancel }: NodeFormProps) {
       />
       <Select
         label="타입"
-        options={nodeTypeOptions}
+        options={NODE_TYPE_GROUPS}
         value={initialData?.type}
         name="type"
       />
