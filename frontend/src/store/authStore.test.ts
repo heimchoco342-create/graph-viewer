@@ -1,21 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock localStorage before importing store
-const localStorageMock = {
-  store: {} as Record<string, string>,
-  getItem(key: string) { return this.store[key] ?? null; },
-  setItem(key: string, value: string) { this.store[key] = value; },
-  removeItem(key: string) { delete this.store[key]; },
-  clear() { this.store = {}; },
-  length: 0,
-  key: vi.fn(),
-};
-
-Object.defineProperty(globalThis, 'localStorage', {
-  value: localStorageMock,
-  writable: true,
-});
-
 vi.mock('../api/auth', () => ({
   login: vi.fn(),
   register: vi.fn(),
@@ -28,7 +12,7 @@ import { useAuthStore } from './authStore';
 describe('authStore', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorageMock.clear();
+    window.localStorage.clear();
     useAuthStore.setState({ token: null, user: null, error: null, loading: false });
   });
 
@@ -38,7 +22,7 @@ describe('authStore', () => {
     await useAuthStore.getState().login('test@example.com', 'pass');
 
     expect(useAuthStore.getState().token).toBe('jwt123');
-    expect(localStorageMock.getItem('token')).toBe('jwt123');
+    expect(window.localStorage.getItem('token')).toBe('jwt123');
     expect(useAuthStore.getState().loading).toBe(false);
   });
 
@@ -57,7 +41,7 @@ describe('authStore', () => {
     await useAuthStore.getState().register('test@example.com', 'pass', 'Test');
 
     expect(useAuthStore.getState().token).toBe('jwt456');
-    expect(localStorageMock.getItem('token')).toBe('jwt456');
+    expect(window.localStorage.getItem('token')).toBe('jwt456');
   });
 
   it('register sets error on failure', async () => {
@@ -69,15 +53,14 @@ describe('authStore', () => {
   });
 
   it('logout clears token and user', () => {
-    localStorageMock.setItem('token', 'jwt123');
+    window.localStorage.setItem('token', 'jwt123');
     useAuthStore.setState({ token: 'jwt123', user: { id: '1', email: 'a@b.c', name: 'Test', created_at: '' } });
 
     useAuthStore.getState().logout();
 
     expect(useAuthStore.getState().token).toBeNull();
     expect(useAuthStore.getState().user).toBeNull();
-    // Verify removeStoredToken was called (token should be removed from store)
-    expect(localStorageMock.store['token']).toBeUndefined();
+    expect(window.localStorage.getItem('token')).toBeNull();
   });
 
   it('fetchMe sets user', async () => {

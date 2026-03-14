@@ -15,7 +15,11 @@ export interface AuthState {
 
 function getStoredToken(): string | null {
   try {
-    return localStorage.getItem('token');
+    const storage = typeof window !== 'undefined' ? window.localStorage : null;
+    if (storage && typeof storage.getItem === 'function') {
+      return storage.getItem('token');
+    }
+    return null;
   } catch {
     return null;
   }
@@ -23,7 +27,10 @@ function getStoredToken(): string | null {
 
 function setStoredToken(token: string): void {
   try {
-    localStorage.setItem('token', token);
+    const storage = typeof window !== 'undefined' ? window.localStorage : null;
+    if (storage && typeof storage.setItem === 'function') {
+      storage.setItem('token', token);
+    }
   } catch {
     // ignore
   }
@@ -31,7 +38,10 @@ function setStoredToken(token: string): void {
 
 function removeStoredToken(): void {
   try {
-    removeStoredToken();
+    const storage = typeof window !== 'undefined' ? window.localStorage : null;
+    if (storage && typeof storage.removeItem === 'function') {
+      storage.removeItem('token');
+    }
   } catch {
     // ignore
   }

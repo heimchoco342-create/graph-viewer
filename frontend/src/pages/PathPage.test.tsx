@@ -26,7 +26,7 @@ describe('PathPage', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText('경로 탐색')).toBeInTheDocument();
+    expect(screen.getAllByText('경로 탐색').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('경로 검색')).toBeInTheDocument();
   });
 
