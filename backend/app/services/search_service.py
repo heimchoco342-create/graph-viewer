@@ -117,7 +117,7 @@ async def _search_with_vectors(
     type_filter = "AND n.type = ANY(:target_types)" if target_types else ""
 
     sql = text(f"""
-    WITH seed_nodes AS (
+    WITH RECURSIVE seed_nodes AS (
         -- Step 1: Vector similarity search for seed nodes
         SELECT n.id, n.name, n.type, n.properties,
                0 AS depth,
@@ -133,7 +133,7 @@ async def _search_with_vectors(
         SELECT s.id, s.name, s.type, s.properties, s.depth, s.score
         FROM seed_nodes s
 
-        UNION
+        UNION ALL
 
         SELECT n.id, n.name, n.type, n.properties,
                t.depth + 1 AS depth,
@@ -152,10 +152,13 @@ async def _search_with_vectors(
           AND n.id NOT IN (SELECT id FROM seed_nodes)
           {graph_filter}
     )
-    SELECT DISTINCT ON (id) id, name, type, properties, depth, score
-    FROM traversal
-    WHERE 1=1 {type_filter}
-    ORDER BY id, depth ASC, score DESC
+    SELECT * FROM (
+        SELECT DISTINCT ON (id) id, name, type, properties, depth, score
+        FROM traversal
+        WHERE 1=1 {type_filter}
+        ORDER BY id, depth ASC, score DESC
+    ) sub
+    ORDER BY score DESC, depth ASC
     """)
 
     params: dict = {
@@ -219,12 +222,43 @@ async def _search_with_keywords(
         dialect = "unknown"
 
     like_op = "ILIKE" if dialect == "postgresql" else "LIKE"
+    is_pg = dialect == "postgresql"
+
+    # PostgreSQL: DISTINCT ON for dedup; SQLite: GROUP BY with MIN/MAX
+    if is_pg:
+        dedup_sql = """
+    SELECT * FROM (
+        SELECT DISTINCT ON (id) id, name, type, properties, depth, score
+        FROM traversal
+        {type_filter}
+        ORDER BY id, depth ASC, score DESC
+    ) sub
+    ORDER BY score DESC, depth ASC
+    LIMIT :result_limit
+        """
+    else:
+        dedup_sql = """
+    SELECT id, name, type, properties,
+           MIN(depth) AS depth,
+           MAX(score) AS score
+    FROM traversal
+    {type_filter}
+    GROUP BY id, name, type, properties
+    ORDER BY score DESC, depth ASC
+    LIMIT :result_limit
+        """
+
+    type_filter_clause = (
+        "WHERE type IN (" + ",".join(f"'{t}'" for t in target_types) + ")"
+        if target_types else ""
+    )
+    dedup_sql = dedup_sql.replace("{type_filter}", type_filter_clause)
 
     sql = text(f"""
-    WITH seed_nodes AS (
+    WITH RECURSIVE seed_nodes AS (
         SELECT n.id, n.name, n.type, n.properties,
                0 AS depth,
-               1.0 AS score
+               CAST(1.0 AS REAL) AS score
         FROM nodes n
         WHERE (n.name {like_op} :pattern OR n.type {like_op} :pattern)
         {graph_filter}
@@ -234,7 +268,7 @@ async def _search_with_keywords(
         SELECT s.id, s.name, s.type, s.properties, s.depth, s.score
         FROM seed_nodes s
 
-        UNION
+        UNION ALL
 
         SELECT n.id, n.name, n.type, n.properties,
                t.depth + 1 AS depth,
@@ -246,15 +280,9 @@ async def _search_with_keywords(
             ELSE e.source_id
         END
         WHERE t.depth < :max_depth
+          AND n.id NOT IN (SELECT id FROM seed_nodes)
     )
-    SELECT DISTINCT id, name, type, properties,
-           MIN(depth) AS depth,
-           MAX(score) AS score
-    FROM traversal
-    {"WHERE type IN (" + ",".join(f"'{t}'" for t in target_types) + ")" if target_types else ""}
-    GROUP BY id, name, type, properties
-    ORDER BY score DESC, depth ASC
-    LIMIT :result_limit
+    {dedup_sql}
     """)
 
     params: dict = {
