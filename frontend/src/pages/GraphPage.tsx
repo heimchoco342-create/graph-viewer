@@ -124,10 +124,30 @@ export function GraphPage() {
 
   return (
     <AppLayout sidebar={<Sidebar menuItems={menuItems} onMenuClick={handleMenuClick} />}>
-      <Header
-        title="그래프 뷰어"
-        userName={user?.name ?? ''}
-      />
+      <header className="flex items-center justify-between px-4 py-2 border-b border-border bg-bg-secondary shrink-0 whitespace-nowrap">
+        <h2 className="text-base font-semibold text-text-primary">그래프 뷰어</h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowNodeForm(true)}
+            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-500"
+          >
+            + 노드
+          </button>
+          <button
+            onClick={() => setShowEdgeForm(true)}
+            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-500"
+          >
+            + 엣지
+          </button>
+          <span className="text-sm text-text-secondary">{user?.name}</span>
+          <button
+            onClick={logout}
+            className="text-sm text-red-400 hover:text-red-300"
+          >
+            로그아웃
+          </button>
+        </div>
+      </header>
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 relative">
           <GraphCanvas
@@ -138,29 +158,9 @@ export function GraphPage() {
             onNodeClick={handleNodeClick}
             onEdgeClick={handleEdgeClick}
           />
-          <div className="absolute top-4 right-4 flex gap-2 z-10">
-            <button
-              onClick={() => setShowNodeForm(true)}
-              className="bg-accent text-white px-3 py-1 rounded-lg text-sm hover:bg-accent-hover"
-            >
-              노드 추가
-            </button>
-            <button
-              onClick={() => setShowEdgeForm(true)}
-              className="bg-accent text-white px-3 py-1 rounded-lg text-sm hover:bg-accent-hover"
-            >
-              엣지 추가
-            </button>
-            <button
-              onClick={logout}
-              className="bg-danger text-white px-3 py-1 rounded-lg text-sm"
-            >
-              로그아웃
-            </button>
-          </div>
         </div>
 
-        <div className="w-[320px] border-l border-border bg-bg-primary overflow-y-auto p-4 flex flex-col gap-4">
+        {(selectedNode || selectedEdge) && <div className="w-[280px] shrink-0 border-l border-border bg-bg-primary overflow-y-auto p-4 flex flex-col gap-4">
           {selectedNode && (
             <NodeDetail
               id={selectedNode.id}
@@ -196,7 +196,7 @@ export function GraphPage() {
               엣지 삭제
             </button>
           )}
-        </div>
+        </div>}
       </div>
 
       <Modal isOpen={showNodeForm} title="노드 추가" onClose={() => setShowNodeForm(false)}>

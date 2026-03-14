@@ -49,8 +49,8 @@ describe('GraphPage', () => {
     );
 
     expect(screen.getByText('그래프 뷰어')).toBeInTheDocument();
-    expect(screen.getByText('노드 추가')).toBeInTheDocument();
-    expect(screen.getByText('엣지 추가')).toBeInTheDocument();
+    expect(screen.getByText('+ 노드')).toBeInTheDocument();
+    expect(screen.getByText('+ 엣지')).toBeInTheDocument();
   });
 
   it('shows selected node detail', () => {
