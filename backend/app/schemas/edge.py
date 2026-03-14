@@ -13,6 +13,7 @@ class EdgeCreate(BaseModel):
     type: str = Field(..., max_length=100)
     properties: Dict[str, Any] = Field(default_factory=dict)
     weight: float = 1.0
+    graph_id: Optional[uuid.UUID] = None
 
 
 class EdgeUpdate(BaseModel):

@@ -25,6 +25,8 @@ describe('graphStore', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useGraphStore.setState({
+      graphs: [],
+      selectedGraphId: null,
       nodes: [],
       edges: [],
       selectedNode: null,

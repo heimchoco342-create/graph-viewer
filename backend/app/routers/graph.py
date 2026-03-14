@@ -9,10 +9,55 @@ from app.dependencies import get_db, get_current_user
 from app.models.user import User
 from app.schemas.node import NodeCreate, NodeUpdate, NodeResponse
 from app.schemas.edge import EdgeCreate, EdgeUpdate, EdgeResponse
-from app.schemas.graph import SearchResult
+from app.schemas.graph import GraphCreate, GraphResponse, GraphDetail, SearchResult
 from app.services import graph_service
 
 router = APIRouter(prefix="/api/graph", tags=["graph"])
+
+
+# ── Graphs ─────────────────────────────────────────────────
+
+
+@router.post("/graphs", response_model=GraphResponse, status_code=status.HTTP_201_CREATED)
+async def create_graph(
+    body: GraphCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return await graph_service.create_graph(db, name=body.name, owner_id=user.id, scope=body.scope)
+
+
+@router.get("/graphs", response_model=list[GraphResponse])
+async def list_graphs(
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    return await graph_service.list_graphs(db)
+
+
+@router.get("/graphs/{graph_id}", response_model=GraphDetail)
+async def get_graph_detail(
+    graph_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    graph = await graph_service.get_graph(db, graph_id)
+    if graph is None:
+        raise HTTPException(status_code=404, detail="Graph not found")
+    nodes = await graph_service.list_nodes_by_graph(db, graph_id)
+    edges = await graph_service.list_edges_by_graph(db, graph_id)
+    return GraphDetail(graph=graph, nodes=nodes, edges=edges)
+
+
+@router.delete("/graphs/{graph_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_graph(
+    graph_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    ok = await graph_service.delete_graph(db, graph_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Graph not found")
 
 
 # ── Nodes ──────────────────────────────────────────────────
@@ -24,7 +69,9 @@ async def create_node(
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
 ):
-    node = await graph_service.create_node(db, type=body.type, name=body.name, properties=body.properties)
+    node = await graph_service.create_node(
+        db, type=body.type, name=body.name, properties=body.properties, graph_id=body.graph_id
+    )
     return node
 
 
@@ -92,6 +139,7 @@ async def create_edge(
         type=body.type,
         properties=body.properties,
         weight=body.weight,
+        graph_id=body.graph_id,
     )
     return edge
 

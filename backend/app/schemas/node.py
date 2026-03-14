@@ -11,6 +11,7 @@ class NodeCreate(BaseModel):
     type: str = Field(..., max_length=50)
     name: str = Field(..., max_length=255)
     properties: Dict[str, Any] = Field(default_factory=dict)
+    graph_id: Optional[uuid.UUID] = None
 
 
 class NodeUpdate(BaseModel):

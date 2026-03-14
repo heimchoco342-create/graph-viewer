@@ -5,15 +5,63 @@ import uuid
 from sqlalchemy import select, or_, func, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.graph import Graph
 from app.models.node import Node
 from app.models.edge import Edge
+
+
+# ── Graph CRUD ─────────────────────────────────────────────
+
+
+async def create_graph(db: AsyncSession, *, name: str, owner_id: uuid.UUID, scope: str = "org") -> Graph:
+    graph = Graph(name=name, owner_id=owner_id, scope=scope)
+    db.add(graph)
+    await db.commit()
+    await db.refresh(graph)
+    return graph
+
+
+async def list_graphs(db: AsyncSession) -> list[Graph]:
+    result = await db.execute(select(Graph).order_by(Graph.created_at.desc()))
+    return list(result.scalars().all())
+
+
+async def get_graph(db: AsyncSession, graph_id: uuid.UUID) -> Graph | None:
+    result = await db.execute(select(Graph).where(Graph.id == graph_id))
+    return result.scalar_one_or_none()
+
+
+async def list_nodes_by_graph(db: AsyncSession, graph_id: uuid.UUID) -> list[Node]:
+    result = await db.execute(select(Node).where(Node.graph_id == graph_id))
+    return list(result.scalars().all())
+
+
+async def list_edges_by_graph(db: AsyncSession, graph_id: uuid.UUID) -> list[Edge]:
+    result = await db.execute(select(Edge).where(Edge.graph_id == graph_id))
+    return list(result.scalars().all())
+
+
+async def delete_graph(db: AsyncSession, graph_id: uuid.UUID) -> bool:
+    graph = await get_graph(db, graph_id)
+    if graph is None:
+        return False
+    await db.delete(graph)
+    await db.commit()
+    return True
 
 
 # ── Node CRUD ──────────────────────────────────────────────
 
 
-async def create_node(db: AsyncSession, *, type: str, name: str, properties: dict | None = None) -> Node:
-    node = Node(type=type, name=name, properties=properties or {})
+async def create_node(
+    db: AsyncSession,
+    *,
+    type: str,
+    name: str,
+    properties: dict | None = None,
+    graph_id: uuid.UUID | None = None,
+) -> Node:
+    node = Node(type=type, name=name, properties=properties or {}, graph_id=graph_id)
     db.add(node)
     await db.commit()
     await db.refresh(node)
@@ -62,6 +110,7 @@ async def create_edge(
     type: str,
     properties: dict | None = None,
     weight: float = 1.0,
+    graph_id: uuid.UUID | None = None,
 ) -> Edge:
     edge = Edge(
         source_id=source_id,
@@ -69,6 +118,7 @@ async def create_edge(
         type=type,
         properties=properties or {},
         weight=weight,
+        graph_id=graph_id,
     )
     db.add(edge)
     await db.commit()

@@ -1,15 +1,20 @@
 import { create } from 'zustand';
-import type { GraphNode, GraphEdge } from '../types';
+import type { GraphNode, GraphEdge, GraphMeta } from '../types';
 import * as nodesApi from '../api/nodes';
 import * as edgesApi from '../api/edges';
+import * as graphsApi from '../api/graphs';
 
 export interface GraphState {
+  graphs: GraphMeta[];
+  selectedGraphId: string | null;
   nodes: GraphNode[];
   edges: GraphEdge[];
   selectedNode: GraphNode | null;
   selectedEdge: GraphEdge | null;
   error: string | null;
   loading: boolean;
+  fetchGraphs: () => Promise<void>;
+  selectGraph: (graphId: string) => Promise<void>;
   fetchNodes: () => Promise<void>;
   fetchEdges: () => Promise<void>;
   createNode: (payload: { type: string; name: string; properties?: Record<string, unknown> }) => Promise<GraphNode>;
@@ -23,12 +28,35 @@ export interface GraphState {
 }
 
 export const useGraphStore = create<GraphState>((set, get) => ({
+  graphs: [],
+  selectedGraphId: null,
   nodes: [],
   edges: [],
   selectedNode: null,
   selectedEdge: null,
   error: null,
   loading: false,
+
+  fetchGraphs: async () => {
+    try {
+      const graphs = await graphsApi.getGraphs();
+      set({ graphs });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '그래프 목록 조회 실패';
+      set({ error: message });
+    }
+  },
+
+  selectGraph: async (graphId: string) => {
+    set({ loading: true, error: null, selectedGraphId: graphId, selectedNode: null, selectedEdge: null });
+    try {
+      const detail = await graphsApi.getGraphDetail(graphId);
+      set({ nodes: detail.nodes, edges: detail.edges, loading: false });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '그래프 데이터 조회 실패';
+      set({ error: message, loading: false });
+    }
+  },
 
   fetchNodes: async () => {
     set({ loading: true, error: null });

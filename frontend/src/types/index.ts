@@ -1,3 +1,17 @@
+export interface GraphMeta {
+  id: string;
+  name: string;
+  owner_id: string;
+  scope: string;
+  created_at: string;
+}
+
+export interface GraphDetail {
+  graph: GraphMeta;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
 export interface GraphNode {
   id: string;
   type: string;
