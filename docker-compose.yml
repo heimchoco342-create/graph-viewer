@@ -30,6 +30,37 @@ services:
       postgres:
         condition: service_healthy
 
+  opensearch:
+    image: opensearchproject/opensearch:2.19.0
+    environment:
+      discovery.type: single-node
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      DISABLE_SECURITY_PLUGIN: "true"
+    ports:
+      - "9200:9200"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  openrag:
+    image: langflowai/openrag:latest
+    environment:
+      OPENSEARCH_HOST: opensearch
+      OPENSEARCH_PORT: 9200
+      OPENSEARCH_INDEX_PREFIX: openrag
+      AUTO_LOGIN: "true"
+      BACKEND_PORT: 8100
+    ports:
+      - "8100:8100"
+      - "3001:3000"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+
   frontend:
     build:
       context: ./frontend
@@ -41,3 +72,4 @@ services:
 
 volumes:
   pgdata:
+  opensearch_data:

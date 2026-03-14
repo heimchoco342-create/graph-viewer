@@ -18,8 +18,9 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: List[str] = ["http://localhost:5173"]
 
-    # OpenRAG (placeholder)
-    OPENRAG_BASE_URL: str = "http://localhost:8000"
+    # OpenRAG
+    OPENRAG_URL: str = "http://localhost:8100"
+    OPENRAG_API_KEY: str = ""
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
