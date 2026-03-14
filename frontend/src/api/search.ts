@@ -28,3 +28,24 @@ export async function traverseGraph(q: string, graphId?: string): Promise<Traver
   const { data } = await apiClient.get<TraverseResponse>('/api/graph/traverse', { params });
   return data;
 }
+
+export interface EmbedStatus {
+  total: number;
+  embedded: number;
+  pending: number;
+  has_embedding_column: boolean;
+}
+
+export async function getEmbedStatus(graphId?: string): Promise<EmbedStatus> {
+  const params: Record<string, string> = {};
+  if (graphId) params.graph_id = graphId;
+  const { data } = await apiClient.get<EmbedStatus>('/api/graph/embed/status', { params });
+  return data;
+}
+
+export async function embedNodes(graphId?: string): Promise<{ embedded: number }> {
+  const params: Record<string, string> = {};
+  if (graphId) params.graph_id = graphId;
+  const { data } = await apiClient.post<{ embedded: number }>('/api/graph/embed', null, { params });
+  return data;
+}

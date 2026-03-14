@@ -4,7 +4,7 @@ import { GraphCanvas } from './GraphCanvas';
 import { CircleNode } from './CircleNode';
 import { applyDagreLayout } from '../../pages/GraphPage';
 import { NODE_TYPE_COLORS } from '../../constants/nodeTypes';
-import { traverseGraph, type TraverseResult } from '../../api/search';
+import { traverseGraph, type TraverseResult, getEmbedStatus, embedNodes, type EmbedStatus } from '../../api/search';
 import type { GraphNode, GraphEdge } from '../../types';
 
 const nodeTypes = { circle: CircleNode };
@@ -56,6 +56,7 @@ export function BfsSearchPanel({ nodes, edges }: BfsSearchPanelProps) {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
+  const [embedStatus, setEmbedStatus] = useState<EmbedStatus | null>(null);
 
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>([]);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -158,6 +159,11 @@ export function BfsSearchPanel({ nodes, edges }: BfsSearchPanelProps) {
     setSearched(false);
   }, []);
 
+  // Fetch embed status on mount
+  useEffect(() => {
+    void getEmbedStatus().then(setEmbedStatus).catch(() => {});
+  }, []);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Search controls */}
@@ -187,6 +193,21 @@ export function BfsSearchPanel({ nodes, edges }: BfsSearchPanelProps) {
             </button>
           )}
         </div>
+
+        {/* Embedding status indicator */}
+        {embedStatus && (
+          <div className="flex items-center gap-2 text-xs text-text-secondary">
+            <span className={`inline-block w-2 h-2 rounded-full ${embedStatus.has_embedding_column && embedStatus.pending === 0 ? 'bg-green-500' : embedStatus.has_embedding_column ? 'bg-yellow-500' : 'bg-red-500'}`} />
+            {embedStatus.has_embedding_column ? (
+              <span>
+                벡터 검색 {embedStatus.embedded}/{embedStatus.total}
+                {embedStatus.pending > 0 && <span className="text-yellow-400"> ({embedStatus.pending}개 대기)</span>}
+              </span>
+            ) : (
+              <span className="text-text-secondary">키워드 검색 (pgvector 미설치)</span>
+            )}
+          </div>
+        )}
 
         {/* Results summary + depth legend */}
         {searched && (

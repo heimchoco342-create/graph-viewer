@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import uuid
+import logging
 
 from sqlalchemy import select, or_, func, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.graph import Graph
-from app.models.node import Node
+from app.models.node import Node, _embedding_column
 from app.models.edge import Edge
+
+logger = logging.getLogger(__name__)
 
 
 # ── Graph CRUD ─────────────────────────────────────────────
@@ -65,6 +68,8 @@ async def create_node(
     db.add(node)
     await db.commit()
     await db.refresh(node)
+    # Auto-embed if pgvector is available
+    await _auto_embed_node(db, node)
     return node
 
 
@@ -87,6 +92,9 @@ async def update_node(db: AsyncSession, node_id: uuid.UUID, **kwargs) -> Node | 
             setattr(node, key, value)
     await db.commit()
     await db.refresh(node)
+    # Re-embed if name, type, or properties changed
+    if any(k in kwargs for k in ("name", "type", "properties")):
+        await _auto_embed_node(db, node)
     return node
 
 
@@ -155,6 +163,20 @@ async def delete_edge(db: AsyncSession, edge_id: uuid.UUID) -> bool:
     await db.delete(edge)
     await db.commit()
     return True
+
+
+# ── Auto-embedding ────────────────────────────────────────────
+
+
+async def _auto_embed_node(db: AsyncSession, node: Node) -> None:
+    """Compute and store embedding for a node if pgvector is available."""
+    if _embedding_column is None:
+        return  # pgvector not installed
+    try:
+        from app.services.search_service import embed_node
+        await embed_node(db, node.id)
+    except Exception as e:
+        logger.warning("Auto-embed failed for node %s: %s", node.id, e)
 
 
 # ── Search (trigram-like for SQLite compat, real trigram on PG) ─────

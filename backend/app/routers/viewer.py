@@ -232,3 +232,54 @@ async def traverse_graph(
             for r in response.results
         ],
     }
+
+
+# ── Embeddings ───────────────────────────────────────────────
+
+
+@router.post("/graph/embed")
+async def embed_nodes(
+    graph_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_async_session),
+):
+    """Generate embeddings for all nodes missing them (optionally scoped to a graph)."""
+    from app.services.search_service import embed_all_nodes
+    gid = uuid.UUID(graph_id) if graph_id else None
+    count = await embed_all_nodes(db, graph_id=gid)
+    return {"embedded": count}
+
+
+@router.get("/graph/embed/status")
+async def embed_status(
+    graph_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_async_session),
+):
+    """Check how many nodes have/lack embeddings."""
+    from sqlalchemy import text as sa_text
+    graph_filter = "AND graph_id = :graph_id" if graph_id else ""
+    params: dict = {}
+    if graph_id:
+        params["graph_id"] = graph_id
+
+    total_result = await db.execute(
+        sa_text(f"SELECT COUNT(*) FROM nodes WHERE 1=1 {graph_filter}"), params
+    )
+    total = total_result.scalar() or 0
+
+    # Check if embedding column exists
+    from app.services.search_service import _has_embedding_column
+    has_col = await _has_embedding_column(db)
+    if not has_col:
+        return {"total": total, "embedded": 0, "pending": total, "has_embedding_column": False}
+
+    embedded_result = await db.execute(
+        sa_text(f"SELECT COUNT(*) FROM nodes WHERE embedding IS NOT NULL {graph_filter}"), params
+    )
+    embedded = embedded_result.scalar() or 0
+
+    return {
+        "total": total,
+        "embedded": embedded,
+        "pending": total - embedded,
+        "has_embedding_column": True,
+    }
