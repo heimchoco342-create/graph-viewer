@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 from sqlalchemy import Float, ForeignKey, String, DateTime, JSON, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
@@ -14,6 +15,9 @@ class Edge(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
+    )
+    graph_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid, ForeignKey("graphs.id", ondelete="CASCADE"), nullable=True
     )
     source_id: Mapped[uuid.UUID] = mapped_column(
         Uuid,
