@@ -204,11 +204,24 @@ async def seed(session: AsyncSession):
     node_count = len(nodes)
     print(f"✅ Seed complete: {node_count} nodes created")
 
+    # Auto-embed all nodes if pgvector is available
+    try:
+        from app.services.search_service import embed_all_nodes
+        count = await embed_all_nodes(session)
+        if count > 0:
+            print(f"🧠 Embedded {count} nodes")
+    except Exception as e:
+        print(f"⚠️  Embedding skipped: {e}")
+
 
 async def main():
     engine = create_async_engine(DB_URL, echo=False)
 
     async with engine.begin() as conn:
+        # Enable pgvector if PostgreSQL
+        if conn.dialect.name == "postgresql":
+            from sqlalchemy import text
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
 
     Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

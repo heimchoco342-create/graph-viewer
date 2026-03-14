@@ -27,6 +27,10 @@ async def _init_db() -> None:
         # Enable pgvector extension if running on PostgreSQL
         if conn.dialect.name == "postgresql":
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            # Ensure embedding column exists (create_all won't add to existing table)
+            await conn.execute(text(
+                "ALTER TABLE nodes ADD COLUMN IF NOT EXISTS embedding vector(1024)"
+            ))
         await conn.run_sync(Base.metadata.create_all)
 
     # Backfill embeddings for nodes that don't have them yet
