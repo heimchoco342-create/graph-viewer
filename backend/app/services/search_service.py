@@ -151,11 +151,11 @@ async def _search_with_vectors(
         WHERE t.depth < :max_depth
           AND n.id NOT IN (SELECT id FROM seed_nodes)
           {graph_filter}
-    )
+    ) CYCLE id SET is_cycle USING path
     SELECT * FROM (
         SELECT DISTINCT ON (id) id, name, type, properties, depth, score
         FROM traversal
-        WHERE 1=1 {type_filter}
+        WHERE NOT is_cycle {type_filter}
         ORDER BY id, depth ASC, score DESC
     ) sub
     ORDER BY score DESC, depth ASC
@@ -230,7 +230,7 @@ async def _search_with_keywords(
     SELECT * FROM (
         SELECT DISTINCT ON (id) id, name, type, properties, depth, score
         FROM traversal
-        {type_filter}
+        WHERE NOT is_cycle {type_filter}
         ORDER BY id, depth ASC, score DESC
     ) sub
     ORDER BY score DESC, depth ASC
@@ -248,42 +248,83 @@ async def _search_with_keywords(
     LIMIT :result_limit
         """
 
-    type_filter_clause = (
-        "WHERE type IN (" + ",".join(f"'{t}'" for t in target_types) + ")"
-        if target_types else ""
-    )
+    if is_pg:
+        type_filter_clause = (
+            "AND type IN (" + ",".join(f"'{t}'" for t in target_types) + ")"
+            if target_types else ""
+        )
+    else:
+        type_filter_clause = (
+            "WHERE type IN (" + ",".join(f"'{t}'" for t in target_types) + ")"
+            if target_types else ""
+        )
     dedup_sql = dedup_sql.replace("{type_filter}", type_filter_clause)
 
-    sql = text(f"""
-    WITH RECURSIVE seed_nodes AS (
-        SELECT n.id, n.name, n.type, n.properties,
-               0 AS depth,
-               CAST(1.0 AS REAL) AS score
-        FROM nodes n
-        WHERE (n.name {like_op} :pattern OR n.type {like_op} :pattern)
-        {graph_filter}
-        LIMIT :seed_limit
-    ),
-    traversal AS (
-        SELECT s.id, s.name, s.type, s.properties, s.depth, s.score
-        FROM seed_nodes s
+    if is_pg:
+        # PostgreSQL: use CYCLE clause for cycle detection
+        sql = text(f"""
+        WITH RECURSIVE seed_nodes AS (
+            SELECT n.id, n.name, n.type, n.properties,
+                   0 AS depth,
+                   CAST(1.0 AS REAL) AS score
+            FROM nodes n
+            WHERE (n.name {like_op} :pattern OR n.type {like_op} :pattern)
+            {graph_filter}
+            LIMIT :seed_limit
+        ),
+        traversal AS (
+            SELECT s.id, s.name, s.type, s.properties, s.depth, s.score
+            FROM seed_nodes s
 
-        UNION ALL
+            UNION ALL
 
-        SELECT n.id, n.name, n.type, n.properties,
-               t.depth + 1 AS depth,
-               CAST(1.0 / (t.depth + 2) AS REAL) AS score
-        FROM traversal t
-        JOIN edges e ON (e.source_id = t.id OR e.target_id = t.id)
-        JOIN nodes n ON n.id = CASE
-            WHEN e.source_id = t.id THEN e.target_id
-            ELSE e.source_id
-        END
-        WHERE t.depth < :max_depth
-          AND n.id NOT IN (SELECT id FROM seed_nodes)
-    )
-    {dedup_sql}
-    """)
+            SELECT n.id, n.name, n.type, n.properties,
+                   t.depth + 1 AS depth,
+                   CAST(1.0 / (t.depth + 2) AS REAL) AS score
+            FROM traversal t
+            JOIN edges e ON (e.source_id = t.id OR e.target_id = t.id)
+            JOIN nodes n ON n.id = CASE
+                WHEN e.source_id = t.id THEN e.target_id
+                ELSE e.source_id
+            END
+            WHERE t.depth < :max_depth
+        ) CYCLE id SET is_cycle USING path
+        {dedup_sql}
+        """)
+    else:
+        # SQLite: use visited path string for cycle detection
+        sql = text(f"""
+        WITH RECURSIVE seed_nodes AS (
+            SELECT n.id, n.name, n.type, n.properties,
+                   0 AS depth,
+                   CAST(1.0 AS REAL) AS score
+            FROM nodes n
+            WHERE (n.name {like_op} :pattern OR n.type {like_op} :pattern)
+            {graph_filter}
+            LIMIT :seed_limit
+        ),
+        traversal AS (
+            SELECT s.id, s.name, s.type, s.properties, s.depth, s.score,
+                   ',' || CAST(s.id AS TEXT) || ',' AS visited
+            FROM seed_nodes s
+
+            UNION ALL
+
+            SELECT n.id, n.name, n.type, n.properties,
+                   t.depth + 1 AS depth,
+                   CAST(1.0 / (t.depth + 2) AS REAL) AS score,
+                   t.visited || CAST(n.id AS TEXT) || ','
+            FROM traversal t
+            JOIN edges e ON (e.source_id = t.id OR e.target_id = t.id)
+            JOIN nodes n ON n.id = CASE
+                WHEN e.source_id = t.id THEN e.target_id
+                ELSE e.source_id
+            END
+            WHERE t.depth < :max_depth
+              AND t.visited NOT LIKE '%,' || CAST(n.id AS TEXT) || ',%'
+        )
+        {dedup_sql}
+        """)
 
     params: dict = {
         "pattern": f"%{query}%",

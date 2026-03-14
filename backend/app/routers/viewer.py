@@ -36,8 +36,15 @@ class AuthPayload(BaseModel):
 
 
 def _hash_password(pw: str) -> str:
-    import hashlib
-    return hashlib.sha256(pw.encode()).hexdigest()
+    from passlib.context import CryptContext
+    _pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    return _pwd_ctx.hash(pw)
+
+
+def _verify_password(plain: str, hashed: str) -> bool:
+    from passlib.context import CryptContext
+    _pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    return _pwd_ctx.verify(plain, hashed)
 
 
 def _create_token(user_id: str) -> str:
@@ -60,7 +67,7 @@ def _decode_token(token: str) -> str:
 async def login(body: AuthPayload, db: AsyncSession = Depends(get_async_session)):
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
-    if not user or user.password_hash != _hash_password(body.password):
+    if not user or not _verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return {"access_token": _create_token(str(user.id)), "token_type": "bearer"}
 
