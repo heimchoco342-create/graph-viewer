@@ -35,10 +35,11 @@ export function PathPage() {
     { label: '검색', icon: '🔍', active: location.pathname === '/search' },
     { label: '업로드', icon: '📤', active: location.pathname === '/upload' },
     { label: '경로', icon: '🗺️', active: location.pathname === '/path' },
+    { label: '쿼리', icon: '🧪', active: location.pathname === '/query' },
   ];
 
   const handleMenuClick = (label: string) => {
-    const routes: Record<string, string> = { '그래프': '/', '검색': '/search', '업로드': '/upload', '경로': '/path' };
+    const routes: Record<string, string> = { '그래프': '/', '검색': '/search', '업로드': '/upload', '경로': '/path', '쿼리': '/query' };
     const route = routes[label];
     if (route) navigate(route);
   };

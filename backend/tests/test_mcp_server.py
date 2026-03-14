@@ -340,7 +340,8 @@ async def test_handle_request_tools_list():
     assert "import_k8s_yaml" in tool_names
     assert "find_path" in tool_names
     assert "get_node_relations" in tool_names
-    assert len(tools) == 12
+    assert "query_nodes" in tool_names
+    assert len(tools) == 13
 
 
 @pytest.mark.asyncio

@@ -5,6 +5,7 @@ import { GraphPage } from './pages/GraphPage';
 import { SearchPage } from './pages/SearchPage';
 import { UploadPage } from './pages/UploadPage';
 import { PathPage } from './pages/PathPage';
+import { QueryPage } from './pages/QueryPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import './index.css';
@@ -62,6 +63,14 @@ function App() {
           element={
             <ProtectedRoute>
               <PathPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/query"
+          element={
+            <ProtectedRoute>
+              <QueryPage />
             </ProtectedRoute>
           }
         />

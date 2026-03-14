@@ -172,6 +172,23 @@ TOOLS = [
         },
     },
     {
+        "name": "query_nodes",
+        "description": "Advanced node query: filter by type, search text in name/properties, and optionally include each node's connections. Returns nodes matching all specified criteria.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "type_filter": {"type": "string", "description": "Filter by node type (e.g. person, task, team)"},
+                "search": {"type": "string", "description": "Text to search in node name and properties"},
+                "property_filter": {
+                    "type": "object",
+                    "description": "Filter by property values (e.g. {\"status\": \"completed\", \"team\": \"백엔드팀\"})",
+                },
+                "include_connections": {"type": "boolean", "description": "Include connected nodes and edges in response (default false)", "default": False},
+                "limit": {"type": "integer", "description": "Max results (default 50)", "default": 50},
+            },
+        },
+    },
+    {
         "name": "import_k8s_yaml",
         "description": "Import Kubernetes resources from a YAML manifest. Automatically creates nodes for all K8s resources and edges for their relationships (ownerReferences, selectors, volume mounts, ingress routes, namespace membership, HPA targets).",
         "inputSchema": {
@@ -350,6 +367,46 @@ async def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Any:
             )
             edges = list(result.scalars().all())
             return [_edge_to_dict(e) for e in edges]
+
+        elif name == "query_nodes":
+            from app.models.node import Node
+            nodes = await graph_service.list_nodes(
+                session, limit=arguments.get("limit", 50)
+            )
+            # Type filter
+            type_filter = arguments.get("type_filter")
+            if type_filter:
+                nodes = [n for n in nodes if n.type == type_filter]
+            # Text search in name and properties
+            search_text = arguments.get("search", "").lower()
+            if search_text:
+                nodes = [
+                    n for n in nodes
+                    if search_text in n.name.lower()
+                    or search_text in json.dumps(n.properties, ensure_ascii=False).lower()
+                ]
+            # Property filter
+            prop_filter = arguments.get("property_filter", {})
+            if prop_filter:
+                def matches_props(node_props, filters):
+                    return all(
+                        str(node_props.get(k, "")).lower() == str(v).lower()
+                        for k, v in filters.items()
+                    )
+                nodes = [n for n in nodes if matches_props(n.properties, prop_filter)]
+            # Build result
+            result_nodes = [_node_to_dict(n) for n in nodes]
+            # Optionally include connections
+            if arguments.get("include_connections", False):
+                for rn in result_nodes:
+                    node_id = uuid.UUID(rn["id"])
+                    edge_result = await session.execute(
+                        select(Edge).where(
+                            or_(Edge.source_id == node_id, Edge.target_id == node_id)
+                        )
+                    )
+                    rn["connections"] = [_edge_to_dict(e) for e in edge_result.scalars().all()]
+            return result_nodes
 
         elif name == "import_k8s_yaml":
             result = await import_k8s_yaml(
