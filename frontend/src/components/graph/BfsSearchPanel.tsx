@@ -55,6 +55,7 @@ export function BfsSearchPanel({ nodes, edges }: BfsSearchPanelProps) {
   const [totalTraversed, setTotalTraversed] = useState(0);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
 
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>([]);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -127,7 +128,7 @@ export function BfsSearchPanel({ nodes, edges }: BfsSearchPanelProps) {
           strokeWidth: isConnected ? 2 : 1,
           opacity: isConnected ? 1 : 0.15,
         },
-        animated: isConnected,
+        animated: false,
       };
     });
   }, [flowEdges, searched, resultIds]);
@@ -221,21 +222,78 @@ export function BfsSearchPanel({ nodes, edges }: BfsSearchPanelProps) {
         )}
       </div>
 
-      {/* Graph canvas */}
-      <div className="flex-1 relative">
-        {nodes.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-text-secondary text-sm">
-            그래프 데이터가 없습니다
+      {/* Graph canvas + results split */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Graph canvas — expands when panel is closed */}
+        <div className={`relative transition-all duration-200 ${searched && results.length > 0 && panelOpen ? 'h-1/2' : 'flex-1'}`}>
+          {nodes.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-text-secondary text-sm">
+              그래프 데이터가 없습니다
+            </div>
+          ) : (
+            <GraphCanvas
+              key={layoutKey}
+              nodes={displayNodes}
+              edges={displayEdges}
+              nodeTypes={nodeTypes}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+            />
+          )}
+        </div>
+
+        {/* Results panel — collapsible */}
+        {searched && results.length > 0 && (
+          <div className={`border-t border-border flex flex-col transition-all duration-200 ${panelOpen ? 'h-1/2' : 'h-9'}`}>
+            {/* Panel header — always visible, click to toggle */}
+            <button
+              onClick={() => setPanelOpen((v) => !v)}
+              className="shrink-0 flex items-center justify-between px-3 py-1.5 bg-bg-secondary hover:bg-bg-secondary/80 text-xs text-text-secondary cursor-pointer select-none"
+            >
+              <span className="flex items-center gap-2">
+                <span className="text-text-primary font-medium">탐색 결과</span>
+                <span>{results.length}건</span>
+              </span>
+              <span className={`transition-transform duration-200 ${panelOpen ? '' : 'rotate-180'}`}>
+                ▼
+              </span>
+            </button>
+
+            {/* Table body */}
+            {panelOpen && (
+              <div className="flex-1 overflow-auto bg-bg-primary">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-bg-secondary text-text-secondary text-xs">
+                    <tr>
+                      <th className="text-left px-3 py-1.5 w-8"></th>
+                      <th className="text-left px-3 py-1.5">이름</th>
+                      <th className="text-left px-3 py-1.5">타입</th>
+                      <th className="text-left px-3 py-1.5">속성</th>
+                      <th className="text-right px-3 py-1.5">점수</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.map((r) => (
+                      <tr key={r.node_id} className="border-t border-border hover:bg-bg-secondary/50">
+                        <td className="px-3 py-1.5">
+                          <span
+                            className="inline-block w-2.5 h-2.5 rounded-full"
+                            style={{ backgroundColor: DEPTH_COLORS[Math.min(r.depth, DEPTH_COLORS.length - 1)] }}
+                          />
+                        </td>
+                        <td className="px-3 py-1.5 text-text-primary font-medium">{r.name}</td>
+                        <td className="px-3 py-1.5 text-text-secondary">{r.type}</td>
+                        <td className="px-3 py-1.5 text-text-secondary text-xs truncate max-w-[200px]">
+                          {Object.entries(r.properties).map(([k, v]) => `${k}: ${v}`).join(', ')}
+                        </td>
+                        <td className="px-3 py-1.5 text-right text-text-secondary tabular-nums">{r.score}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        ) : (
-          <GraphCanvas
-            key={layoutKey}
-            nodes={displayNodes}
-            edges={displayEdges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-          />
         )}
       </div>
     </div>
