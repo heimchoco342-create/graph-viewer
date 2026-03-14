@@ -121,11 +121,11 @@ async def _search_with_vectors(
         -- Step 1: Vector similarity search for seed nodes
         SELECT n.id, n.name, n.type, n.properties,
                0 AS depth,
-               1 - (n.embedding <=> :query_vec::vector) AS score
+               1 - (n.embedding <=> CAST(:query_vec AS vector)) AS score
         FROM nodes n
         WHERE n.embedding IS NOT NULL
         {graph_filter}
-        ORDER BY n.embedding <=> :query_vec::vector
+        ORDER BY n.embedding <=> CAST(:query_vec AS vector)
         LIMIT :seed_limit
     ),
     traversal AS (
@@ -138,7 +138,7 @@ async def _search_with_vectors(
         SELECT n.id, n.name, n.type, n.properties,
                t.depth + 1 AS depth,
                CASE WHEN n.embedding IS NOT NULL
-                    THEN 1 - (n.embedding <=> :query_vec::vector)
+                    THEN 1 - (n.embedding <=> CAST(:query_vec AS vector))
                     ELSE 0.0
                END AS score
         FROM traversal t

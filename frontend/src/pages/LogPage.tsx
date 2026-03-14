@@ -32,10 +32,8 @@ export function LogPage() {
 
   const connect = useCallback(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
-    // In dev, backend is on port 8000; in prod, same host
-    const port = import.meta.env.DEV ? '8000' : window.location.port;
-    const url = `${protocol}//${host}:${port}/ws/logs`;
+    const host = window.location.host; // includes port — Vite proxy handles /ws
+    const url = `${protocol}//${host}/ws/logs`;
 
     const ws = new WebSocket(url);
     wsRef.current = ws;

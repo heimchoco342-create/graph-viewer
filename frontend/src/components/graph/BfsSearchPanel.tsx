@@ -57,6 +57,7 @@ export function BfsSearchPanel({ nodes, edges }: BfsSearchPanelProps) {
   const [searched, setSearched] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [embedStatus, setEmbedStatus] = useState<EmbedStatus | null>(null);
+  const [elapsed, setElapsed] = useState<number | null>(null);
 
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>([]);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -137,8 +138,11 @@ export function BfsSearchPanel({ nodes, edges }: BfsSearchPanelProps) {
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
     setLoading(true);
+    setElapsed(null);
+    const start = performance.now();
     try {
       const response = await traverseGraph(query);
+      setElapsed(Math.round(performance.now() - start));
       setResults(response.results);
       setSeedCount(response.seed_count);
       setTotalTraversed(response.total_traversed);
@@ -223,6 +227,14 @@ export function BfsSearchPanel({ nodes, edges }: BfsSearchPanelProps) {
             <span>
               결과 <span className="text-text-primary font-medium">{results.length}</span>개
             </span>
+            {elapsed !== null && (
+              <>
+                <span className="text-border">|</span>
+                <span>
+                  <span className="text-text-primary font-medium">{elapsed >= 1000 ? `${(elapsed / 1000).toFixed(1)}s` : `${elapsed}ms`}</span>
+                </span>
+              </>
+            )}
             {depthGroups.length > 0 && (
               <>
                 <span className="text-border">|</span>
