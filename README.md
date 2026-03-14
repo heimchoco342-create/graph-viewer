@@ -135,6 +135,21 @@ cd backend && .venv/bin/pytest tests/ -v
 cd frontend && npx vitest run
 ```
 
+## Notes
+
+### Graph Query Performance
+
+현재 그래프 탐색은 PostgreSQL + 애플리케이션 레벨 BFS/Dijkstra로 처리한다. 수백~수천 노드 규모에서는 충분하지만, 노드가 수만 이상으로 커지면 N-hop JOIN 비용이 급증할 수 있다.
+
+**개선 옵션:**
+- **Recursive CTE**: N-hop 이웃 조회를 단일 SQL로 처리
+- **Apache AGE**: PostgreSQL 위에서 Cypher 쿼리 실행 (Neo4j 호환 문법)
+- **Neo4j 마이그레이션**: index-free adjacency로 hop당 O(1) 탐색
+
+### Vector Search
+
+현재 노드 검색은 LIKE 기반이다. pgvector가 이미 스택에 포함되어 있으므로, 메타데이터에 대한 벡터 검색으로 전환하면 시맨틱 검색이 가능해진다.
+
 ## Project Structure
 
 ```
