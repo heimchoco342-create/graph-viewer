@@ -261,15 +261,54 @@ def generate_tasks(start_date: date, days: int = 90, tasks_per_week: int = 10):
     return tasks
 
 
+def cleanup(token: str):
+    """Delete all existing graphs, edges, and nodes."""
+    h = {"Authorization": f"Bearer {token}"}
+    # Delete graphs first (CASCADE deletes associated nodes/edges)
+    graphs = requests.get(f"{BASE}/api/graph/graphs", headers=h).json()
+    for g in graphs:
+        requests.delete(f"{BASE}/api/graph/graphs/{g['id']}", headers=h)
+    total_graphs = len(graphs)
+    # Then clean up any orphan edges/nodes (graph_id=null)
+    total_edges = total_nodes = 0
+    while True:
+        edges = requests.get(f"{BASE}/api/graph/edges", headers=h).json()
+        if not edges:
+            break
+        for e in edges:
+            requests.delete(f"{BASE}/api/graph/edges/{e['id']}", headers=h)
+        total_edges += len(edges)
+    while True:
+        nodes = requests.get(f"{BASE}/api/graph/nodes", headers=h).json()
+        if not nodes:
+            break
+        for n in nodes:
+            requests.delete(f"{BASE}/api/graph/nodes/{n['id']}", headers=h)
+        total_nodes += len(nodes)
+    print(f"🗑️  Cleaned up {total_graphs} graphs, {total_edges} orphan edges, {total_nodes} orphan nodes")
+
+
 def main():
     token = get_token()
     h = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    # Clean existing data
+    cleanup(token)
+
+    # Create a Graph namespace
+    r = requests.post(f"{BASE}/api/graph/graphs", json={
+        "name": "알파테크", "scope": "org",
+    }, headers=h)
+    graph_id = r.json()["id"]
+    print(f"📁 Graph created: {graph_id}")
+
     ids: dict[str, str] = {}
     edge_count = 0
 
     def node(key: str, ntype: str, name: str, props: dict = None):
         r = requests.post(f"{BASE}/api/graph/nodes", json={
             "type": ntype, "name": name, "properties": props or {},
+            "graph_id": graph_id,
         }, headers=h)
         data = r.json()
         ids[key] = data["id"]
@@ -279,6 +318,7 @@ def main():
         requests.post(f"{BASE}/api/graph/edges", json={
             "source_id": ids[src], "target_id": ids[tgt],
             "type": etype, "properties": props or {},
+            "graph_id": graph_id,
         }, headers=h)
         edge_count += 1
 

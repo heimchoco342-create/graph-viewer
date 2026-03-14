@@ -27,9 +27,17 @@ def main():
     h = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     ids: dict[str, str] = {}
 
+    # Create a Graph namespace
+    r = requests.post(f"{BASE}/api/graph/graphs", json={
+        "name": "WNG Corp", "scope": "org",
+    }, headers=h)
+    graph_id = r.json()["id"]
+    print(f"📁 Graph created: {graph_id}")
+
     def node(key: str, type: str, name: str, props: dict = None):
         r = requests.post(f"{BASE}/api/graph/nodes", json={
             "type": type, "name": name, "properties": props or {},
+            "graph_id": graph_id,
         }, headers=h)
         data = r.json()
         ids[key] = data["id"]
@@ -39,6 +47,7 @@ def main():
         requests.post(f"{BASE}/api/graph/edges", json={
             "source_id": ids[src], "target_id": ids[tgt],
             "type": type, "properties": props or {},
+            "graph_id": graph_id,
         }, headers=h)
 
     # ── 조직 ──
@@ -130,6 +139,14 @@ def main():
 
     print(f"✅ {len(ids)} nodes created")
 
+    edge_count = 0
+    _orig_edge = edge
+
+    def edge(src, tgt, etype, props=None):
+        nonlocal edge_count
+        _orig_edge(src, tgt, etype, props)
+        edge_count += 1
+
     # ── 관계 (edges) ──
 
     # 조직 → 팀
@@ -204,7 +221,7 @@ def main():
     edge("task7", "task1", "depends_on")
     edge("task10", "task2", "follows_up")
 
-    print("✅ 58 edges created")
+    print(f"✅ {edge_count} edges created")
 
 
 if __name__ == "__main__":
