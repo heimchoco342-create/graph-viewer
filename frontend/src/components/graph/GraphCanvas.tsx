@@ -14,6 +14,7 @@ import '@xyflow/react/dist/style.css'
 export interface GraphCanvasProps {
   nodes: Node[]
   edges: Edge[]
+  nodeTypes?: Record<string, React.ComponentType<any>>
   onNodesChange?: OnNodesChange
   onEdgesChange?: OnEdgesChange
   onConnect?: OnConnect
@@ -24,6 +25,7 @@ export interface GraphCanvasProps {
 export function GraphCanvas({
   nodes,
   edges,
+  nodeTypes,
   onNodesChange,
   onEdgesChange,
   onConnect,
@@ -35,6 +37,7 @@ export function GraphCanvas({
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}

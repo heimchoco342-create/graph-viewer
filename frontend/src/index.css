@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Override React Flow default node wrapper for circle nodes */
+.react-flow__node-circle {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  width: auto !important;
+}
+
 @theme {
   --color-bg-primary: #0f172a;
   --color-bg-secondary: #1e293b;

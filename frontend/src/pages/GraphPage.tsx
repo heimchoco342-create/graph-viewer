@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { type Node, type Edge, useNodesState, useEdgesState } from '@xyflow/react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
 import { GraphCanvas } from '../components/graph/GraphCanvas';
+import { CircleNode } from '../components/graph/CircleNode';
 import { NodeDetail } from '../components/graph/NodeDetail';
 import { EdgeDetail } from '../components/graph/EdgeDetail';
 import { NodeForm } from '../components/crud/NodeForm';
@@ -14,18 +15,14 @@ import { useAuthStore } from '../store/authStore';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { NODE_TYPE_COLORS } from '../constants/nodeTypes';
 
+const customNodeTypes = { circle: CircleNode };
+
 function toFlowNodes(graphNodes: { id: string; name: string; type: string }[]): Node[] {
   return graphNodes.map((n, i) => ({
     id: n.id,
     position: { x: (i % 5) * 200, y: Math.floor(i / 5) * 150 },
-    data: { label: n.name },
-    type: 'default',
-    style: {
-      background: NODE_TYPE_COLORS[n.type] ?? '#6b7280',
-      color: '#fff',
-      borderRadius: 8,
-      border: 'none',
-    },
+    data: { label: n.name, color: NODE_TYPE_COLORS[n.type] ?? '#6b7280' },
+    type: 'circle',
   }));
 }
 
@@ -160,6 +157,7 @@ export function GraphPage() {
           <GraphCanvas
             nodes={flowNodes}
             edges={flowEdges}
+            nodeTypes={customNodeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={handleNodeClick}
