@@ -1,4 +1,4 @@
-import { Select, type SelectOption } from '../ui/Select'
+import { NodeSearchInput, type NodeOption } from '../ui/NodeSearchInput'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 
@@ -9,19 +9,19 @@ export interface PathStep {
 }
 
 export interface PathFinderProps {
-  nodeOptions?: SelectOption[]
+  nodes?: NodeOption[]
   sourceValue?: string
   targetValue?: string
   pathResult?: PathStep[]
-  onSourceChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void
-  onTargetChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void
+  onSourceChange?: (nodeId: string) => void
+  onTargetChange?: (nodeId: string) => void
   onSearch?: () => void
 }
 
 export function PathFinder({
-  nodeOptions = [],
-  sourceValue,
-  targetValue,
+  nodes = [],
+  sourceValue = '',
+  targetValue = '',
   pathResult,
   onSourceChange,
   onTargetChange,
@@ -30,17 +30,19 @@ export function PathFinder({
   return (
     <Card title="경로 탐색">
       <div className="flex flex-col gap-4">
-        <Select
+        <NodeSearchInput
           label="출발 노드"
-          options={nodeOptions}
+          placeholder="출발 노드를 검색하세요..."
+          nodes={nodes}
           value={sourceValue}
-          onChange={onSourceChange}
+          onChange={(id) => onSourceChange?.(id)}
         />
-        <Select
+        <NodeSearchInput
           label="도착 노드"
-          options={nodeOptions}
+          placeholder="도착 노드를 검색하세요..."
+          nodes={nodes}
           value={targetValue}
-          onChange={onTargetChange}
+          onChange={(id) => onTargetChange?.(id)}
         />
         <Button onClick={onSearch}>경로 검색</Button>
         {pathResult && pathResult.length > 0 && (

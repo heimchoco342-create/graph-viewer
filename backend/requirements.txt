@@ -10,6 +10,10 @@ alembic>=1.13.0
 # pgvector (for production)
 pgvector>=0.3.0
 
+# Embeddings
+sentence-transformers>=3.0.0
+numpy>=1.26.0
+
 # Auth
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4

@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: List[str] = ["http://localhost:5173"]
 
+    # Embedding model: "qwen3" | "mock"
+    EMBEDDING_MODEL: str = "qwen3"
+
     # OpenRAG
     OPENRAG_URL: str = "http://localhost:8100"
     OPENRAG_API_KEY: str = ""

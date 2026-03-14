@@ -10,6 +10,11 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => vi.fn() };
 });
 
+// Mock BfsSearchPanel to avoid React Flow dependency in QueryPage tests
+vi.mock('../components/graph/BfsSearchPanel', () => ({
+  BfsSearchPanel: () => <div data-testid="bfs-search-panel">BFS Panel</div>,
+}));
+
 const MOCK_NODES = [
   { id: '1', name: '김철수', type: 'person', properties: { role: '백엔드 시니어' }, created_at: '', updated_at: '' },
   { id: '2', name: 'FastAPI', type: 'tech', properties: { category: 'framework' }, created_at: '', updated_at: '' },
@@ -39,14 +44,27 @@ describe('QueryPage', () => {
     });
   });
 
-  it('renders query page with filter controls', () => {
+  it('renders tabs', () => {
+    render(
+      <MemoryRouter>
+        <QueryPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('노드')).toBeInTheDocument();
+    expect(screen.getByText('엣지')).toBeInTheDocument();
+    expect(screen.getByText('경로')).toBeInTheDocument();
+    expect(screen.getByText('통계')).toBeInTheDocument();
+    expect(screen.getByText('그래프 탐색')).toBeInTheDocument();
+  });
+
+  it('renders query page with filter controls (nodes tab default)', () => {
     render(
       <MemoryRouter>
         <QueryPage />
       </MemoryRouter>,
     );
 
-    expect(screen.getByPlaceholderText(/검색/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/노드 이름/)).toBeInTheDocument();
     expect(screen.getByText('전체 타입')).toBeInTheDocument();
     expect(screen.getByText('4 / 4')).toBeInTheDocument();
   });
@@ -87,7 +105,7 @@ describe('QueryPage', () => {
       </MemoryRouter>,
     );
 
-    const input = screen.getByPlaceholderText(/검색/);
+    const input = screen.getByPlaceholderText(/노드 이름/);
     fireEvent.change(input, { target: { value: '김' } });
 
     expect(screen.getByText('김철수')).toBeInTheDocument();
@@ -104,7 +122,6 @@ describe('QueryPage', () => {
 
     fireEvent.click(screen.getByText('김철수'));
 
-    // Detail panel should show
     expect(screen.getByText('그래프에서 보기')).toBeInTheDocument();
     expect(screen.getByText('나가는 연결 (1)')).toBeInTheDocument();
   });
@@ -116,7 +133,6 @@ describe('QueryPage', () => {
       </MemoryRouter>,
     );
 
-    // 김철수 has 1 edge, FastAPI has 1 edge, 주문 API has 2 edges
     const rows = screen.getAllByRole('row');
     // Header + 4 data rows
     expect(rows).toHaveLength(5);
@@ -129,10 +145,59 @@ describe('QueryPage', () => {
       </MemoryRouter>,
     );
 
-    const input = screen.getByPlaceholderText(/검색/);
+    const input = screen.getByPlaceholderText(/노드 이름/);
     fireEvent.change(input, { target: { value: 'framework' } });
 
     expect(screen.getByText('FastAPI')).toBeInTheDocument();
     expect(screen.queryByText('김철수')).not.toBeInTheDocument();
+  });
+
+  it('switches to edges tab and shows edges', () => {
+    render(
+      <MemoryRouter>
+        <QueryPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByText('엣지'));
+
+    expect(screen.getByText('works_on')).toBeInTheDocument();
+    expect(screen.getByText('uses')).toBeInTheDocument();
+  });
+
+  it('switches to stats tab and shows summary', () => {
+    render(
+      <MemoryRouter>
+        <QueryPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByText('통계'));
+
+    expect(screen.getByText('총 노드')).toBeInTheDocument();
+    expect(screen.getByText('총 엣지')).toBeInTheDocument();
+    expect(screen.getByText('노드 타입 분포')).toBeInTheDocument();
+    expect(screen.getByText('엣지 타입 분포')).toBeInTheDocument();
+  });
+
+  it('switches to path tab', () => {
+    render(
+      <MemoryRouter>
+        <QueryPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByText('경로'));
+
+    expect(screen.getByText('경로 탐색')).toBeInTheDocument();
+    expect(screen.getByText('경로 검색')).toBeInTheDocument();
+  });
+
+  it('switches to bfs graph search tab', () => {
+    render(
+      <MemoryRouter>
+        <QueryPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByText('그래프 탐색'));
+
+    expect(screen.getByTestId('bfs-search-panel')).toBeInTheDocument();
   });
 });

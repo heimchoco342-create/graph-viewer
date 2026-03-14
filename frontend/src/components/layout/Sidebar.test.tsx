@@ -10,16 +10,15 @@ describe('Sidebar', () => {
   it('renders default menu items', () => {
     render(<Sidebar />)
     expect(screen.getByText('그래프')).toBeInTheDocument()
-    expect(screen.getByText('검색')).toBeInTheDocument()
     expect(screen.getByText('업로드')).toBeInTheDocument()
-    expect(screen.getByText('설정')).toBeInTheDocument()
+    expect(screen.getByText('탐색')).toBeInTheDocument()
   })
 
   it('calls onMenuClick when item is clicked', () => {
     const onMenuClick = vi.fn()
     render(<Sidebar onMenuClick={onMenuClick} />)
-    fireEvent.click(screen.getByText('검색'))
-    expect(onMenuClick).toHaveBeenCalledWith('검색')
+    fireEvent.click(screen.getByText('탐색'))
+    expect(onMenuClick).toHaveBeenCalledWith('탐색')
   })
 
   it('collapses when toggle button is clicked', () => {

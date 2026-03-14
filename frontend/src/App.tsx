@@ -6,6 +6,7 @@ import { SearchPage } from './pages/SearchPage';
 import { UploadPage } from './pages/UploadPage';
 import { PathPage } from './pages/PathPage';
 import { QueryPage } from './pages/QueryPage';
+import { HelpPage } from './pages/HelpPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import './index.css';
@@ -71,6 +72,14 @@ function App() {
           element={
             <ProtectedRoute>
               <QueryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/help"
+          element={
+            <ProtectedRoute>
+              <HelpPage />
             </ProtectedRoute>
           }
         />

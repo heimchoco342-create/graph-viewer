@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """MCP (Model Context Protocol) server for WNG.
 
-Exposes graph CRUD, search, path-finding, and K8s import as MCP tools.
+6 tools: read_memory, create_memory, update_memory, delete_memory, create_link, delete_link.
 Communicates via JSON-RPC 2.0 over stdio.
 
 Usage:
     python mcp_server.py
 
-Configure in Claude Desktop / claude_desktop_config.json:
+Configure in claude_desktop_config.json:
     {
       "mcpServers": {
         "wng": {
@@ -27,7 +27,7 @@ import json
 import logging
 import sys
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger("mcp-wng")
@@ -36,168 +36,83 @@ logger = logging.getLogger("mcp-wng")
 
 TOOLS = [
     {
-        "name": "create_node",
-        "description": "Create a new node in the knowledge graph. Supports types: person, team, project, tech, system, document, and Kubernetes types (k8s-pod, k8s-service, k8s-deployment, k8s-daemonset, k8s-statefulset, k8s-configmap, k8s-secret, k8s-ingress, k8s-namespace, k8s-node, k8s-pvc, k8s-cronjob, k8s-job, k8s-replicaset, k8s-hpa).",
+        "name": "read_memory",
+        "description": (
+            "Search stored memories using natural language. "
+            "Finds relevant memories by vector similarity (or keyword fallback), "
+            "then traverses connected memories automatically."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "name": {"type": "string", "description": "Name of the node"},
-                "type": {"type": "string", "description": "Node type (e.g. person, team, k8s-pod, k8s-deployment)"},
-                "properties": {
-                    "type": "object",
-                    "description": "Additional properties as key-value pairs",
-                    "default": {},
-                },
-            },
-            "required": ["name", "type"],
-        },
-    },
-    {
-        "name": "get_node",
-        "description": "Get a node by its ID.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "node_id": {"type": "string", "description": "UUID of the node"},
-            },
-            "required": ["node_id"],
-        },
-    },
-    {
-        "name": "list_nodes",
-        "description": "List all nodes in the graph, optionally filtered by type.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "type_filter": {"type": "string", "description": "Filter by node type (optional)"},
-                "limit": {"type": "integer", "description": "Max results (default 100)", "default": 100},
-            },
-        },
-    },
-    {
-        "name": "update_node",
-        "description": "Update an existing node's name, type, or properties.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "node_id": {"type": "string", "description": "UUID of the node to update"},
-                "name": {"type": "string", "description": "New name (optional)"},
-                "type": {"type": "string", "description": "New type (optional)"},
-                "properties": {"type": "object", "description": "New properties (optional)"},
-            },
-            "required": ["node_id"],
-        },
-    },
-    {
-        "name": "delete_node",
-        "description": "Delete a node by its ID.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "node_id": {"type": "string", "description": "UUID of the node to delete"},
-            },
-            "required": ["node_id"],
-        },
-    },
-    {
-        "name": "create_edge",
-        "description": "Create a directed edge (relationship) between two nodes.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "source_id": {"type": "string", "description": "UUID of the source node"},
-                "target_id": {"type": "string", "description": "UUID of the target node"},
-                "type": {"type": "string", "description": "Relationship type (e.g. owns, selects, mounts, contains, works_on)"},
-                "properties": {"type": "object", "description": "Additional properties", "default": {}},
-                "weight": {"type": "number", "description": "Edge weight (default 1.0)", "default": 1.0},
-            },
-            "required": ["source_id", "target_id", "type"],
-        },
-    },
-    {
-        "name": "list_edges",
-        "description": "List all edges in the graph.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "limit": {"type": "integer", "description": "Max results (default 100)", "default": 100},
-            },
-        },
-    },
-    {
-        "name": "delete_edge",
-        "description": "Delete an edge by its ID.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "edge_id": {"type": "string", "description": "UUID of the edge to delete"},
-            },
-            "required": ["edge_id"],
-        },
-    },
-    {
-        "name": "search_nodes",
-        "description": "Search for nodes by name or type keyword.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Search query"},
-                "limit": {"type": "integer", "description": "Max results (default 20)", "default": 20},
+                "query": {"type": "string", "description": "Natural language search query"},
+                "graph_id": {"type": "string", "description": "Limit search to a specific graph"},
             },
             "required": ["query"],
         },
     },
     {
-        "name": "find_path",
-        "description": "Find the shortest path between two nodes in the graph.",
+        "name": "create_memory",
+        "description": "Create a new memory node.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "source_id": {"type": "string", "description": "UUID of the start node"},
-                "target_id": {"type": "string", "description": "UUID of the end node"},
-                "weighted": {"type": "boolean", "description": "Use weighted Dijkstra (default false)", "default": False},
+                "name": {"type": "string", "description": "Memory name"},
+                "type": {"type": "string", "description": "Memory type (e.g. person, team, tech, task)"},
+                "properties": {"type": "object", "description": "Additional key-value properties"},
+                "graph_id": {"type": "string", "description": "Target graph namespace"},
             },
-            "required": ["source_id", "target_id"],
+            "required": ["name", "type"],
         },
     },
     {
-        "name": "get_node_relations",
-        "description": "Get all edges connected to a specific node (both incoming and outgoing).",
+        "name": "update_memory",
+        "description": "Update an existing memory node.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "node_id": {"type": "string", "description": "UUID of the node"},
+                "node_id": {"type": "string", "description": "UUID of the memory to update"},
+                "name": {"type": "string", "description": "New name"},
+                "type": {"type": "string", "description": "New type"},
+                "properties": {"type": "object", "description": "New properties (replaces existing)"},
             },
             "required": ["node_id"],
         },
     },
     {
-        "name": "query_nodes",
-        "description": "Advanced node query: filter by type, search text in name/properties, and optionally include each node's connections. Returns nodes matching all specified criteria.",
+        "name": "delete_memory",
+        "description": "Delete a memory node and its connections.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "type_filter": {"type": "string", "description": "Filter by node type (e.g. person, task, team)"},
-                "search": {"type": "string", "description": "Text to search in node name and properties"},
-                "property_filter": {
-                    "type": "object",
-                    "description": "Filter by property values (e.g. {\"status\": \"completed\", \"team\": \"백엔드팀\"})",
-                },
-                "include_connections": {"type": "boolean", "description": "Include connected nodes and edges in response (default false)", "default": False},
-                "limit": {"type": "integer", "description": "Max results (default 50)", "default": 50},
+                "node_id": {"type": "string", "description": "UUID of the memory to delete"},
             },
+            "required": ["node_id"],
         },
     },
     {
-        "name": "import_k8s_yaml",
-        "description": "Import Kubernetes resources from a YAML manifest. Automatically creates nodes for all K8s resources and edges for their relationships (ownerReferences, selectors, volume mounts, ingress routes, namespace membership, HPA targets).",
+        "name": "create_link",
+        "description": "Create a connection between two memories.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "yaml_content": {"type": "string", "description": "Multi-document YAML string with K8s manifests"},
-                "namespace_filter": {"type": "string", "description": "Only import resources from this namespace (optional)"},
+                "source_id": {"type": "string", "description": "UUID of the source memory"},
+                "target_id": {"type": "string", "description": "UUID of the target memory"},
+                "type": {"type": "string", "description": "Relationship type (e.g. member_of, uses, depends_on)"},
+                "graph_id": {"type": "string", "description": "Target graph namespace"},
             },
-            "required": ["yaml_content"],
+            "required": ["source_id", "target_id", "type"],
+        },
+    },
+    {
+        "name": "delete_link",
+        "description": "Delete a connection between two memories.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "edge_id": {"type": "string", "description": "UUID of the connection to delete"},
+            },
+            "required": ["edge_id"],
         },
     },
 ]
@@ -218,7 +133,6 @@ async def _get_engine():
             "sqlite+aiosqlite:///./graph_mcp.db",
         )
         _engine = create_async_engine(db_url, echo=False)
-        # Create tables if needed
         from app.db import Base
         async with _engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
@@ -262,38 +176,49 @@ def _edge_to_dict(edge) -> dict:
 
 async def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Any:
     from app.services import graph_service
-    from app.services.path_service import find_path
-    from app.services.k8s_connector import import_k8s_yaml
-    from sqlalchemy import select, or_
-    from app.models.edge import Edge
+    from app.services.search_service import search_graph
 
     session = await _get_session()
     try:
-        if name == "create_node":
+        # ── read_memory ──────────────────────────────────────
+        if name == "read_memory":
+            graph_id = uuid.UUID(arguments["graph_id"]) if arguments.get("graph_id") else None
+            response = await search_graph(
+                session,
+                query=arguments["query"],
+                graph_id=graph_id,
+            )
+            return {
+                "query": response.query,
+                "seed_count": response.seed_count,
+                "total_traversed": response.total_traversed,
+                "results": [
+                    {
+                        "node_id": str(r.node_id),
+                        "name": r.name,
+                        "type": r.type,
+                        "properties": r.properties,
+                        "depth": r.depth,
+                        "score": r.score,
+                    }
+                    for r in response.results
+                ],
+            }
+
+        # ── create_memory ────────────────────────────────────
+        elif name == "create_memory":
+            graph_id = uuid.UUID(arguments["graph_id"]) if arguments.get("graph_id") else None
             node = await graph_service.create_node(
                 session,
                 type=arguments["type"],
                 name=arguments["name"],
                 properties=arguments.get("properties", {}),
+                graph_id=graph_id,
             )
             return _node_to_dict(node)
 
-        elif name == "get_node":
-            node = await graph_service.get_node(session, uuid.UUID(arguments["node_id"]))
-            if node is None:
-                return {"error": "Node not found"}
-            return _node_to_dict(node)
-
-        elif name == "list_nodes":
-            nodes = await graph_service.list_nodes(
-                session, limit=arguments.get("limit", 100)
-            )
-            type_filter = arguments.get("type_filter")
-            if type_filter:
-                nodes = [n for n in nodes if n.type == type_filter]
-            return [_node_to_dict(n) for n in nodes]
-
-        elif name == "update_node":
+        # ── update_memory ────────────────────────────────────
+        elif name == "update_memory":
             kwargs = {}
             if "name" in arguments:
                 kwargs["name"] = arguments["name"]
@@ -308,113 +233,29 @@ async def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Any:
                 return {"error": "Node not found"}
             return _node_to_dict(node)
 
-        elif name == "delete_node":
+        # ── delete_memory ────────────────────────────────────
+        elif name == "delete_memory":
             ok = await graph_service.delete_node(session, uuid.UUID(arguments["node_id"]))
             return {"deleted": ok}
 
-        elif name == "create_edge":
+        # ── create_link ──────────────────────────────────────
+        elif name == "create_link":
+            graph_id = uuid.UUID(arguments["graph_id"]) if arguments.get("graph_id") else None
             edge = await graph_service.create_edge(
                 session,
                 source_id=uuid.UUID(arguments["source_id"]),
                 target_id=uuid.UUID(arguments["target_id"]),
                 type=arguments["type"],
                 properties=arguments.get("properties", {}),
-                weight=arguments.get("weight", 1.0),
+                weight=1.0,
+                graph_id=graph_id,
             )
             return _edge_to_dict(edge)
 
-        elif name == "list_edges":
-            edges = await graph_service.list_edges(
-                session, limit=arguments.get("limit", 100)
-            )
-            return [_edge_to_dict(e) for e in edges]
-
-        elif name == "delete_edge":
+        # ── delete_link ──────────────────────────────────────
+        elif name == "delete_link":
             ok = await graph_service.delete_edge(session, uuid.UUID(arguments["edge_id"]))
             return {"deleted": ok}
-
-        elif name == "search_nodes":
-            nodes = await graph_service.search_nodes(
-                session,
-                arguments["query"],
-                limit=arguments.get("limit", 20),
-            )
-            return [_node_to_dict(n) for n in nodes]
-
-        elif name == "find_path":
-            result = await find_path(
-                session,
-                uuid.UUID(arguments["source_id"]),
-                uuid.UUID(arguments["target_id"]),
-                weighted=arguments.get("weighted", False),
-            )
-            if result is None:
-                return {"found": False, "nodes": [], "edges": [], "total_weight": 0}
-            nodes, edges, total_weight = result
-            return {
-                "found": True,
-                "nodes": [_node_to_dict(n) for n in nodes],
-                "edges": [_edge_to_dict(e) for e in edges],
-                "total_weight": total_weight,
-            }
-
-        elif name == "get_node_relations":
-            node_id = uuid.UUID(arguments["node_id"])
-            result = await session.execute(
-                select(Edge).where(
-                    or_(Edge.source_id == node_id, Edge.target_id == node_id)
-                )
-            )
-            edges = list(result.scalars().all())
-            return [_edge_to_dict(e) for e in edges]
-
-        elif name == "query_nodes":
-            from app.models.node import Node
-            nodes = await graph_service.list_nodes(
-                session, limit=arguments.get("limit", 50)
-            )
-            # Type filter
-            type_filter = arguments.get("type_filter")
-            if type_filter:
-                nodes = [n for n in nodes if n.type == type_filter]
-            # Text search in name and properties
-            search_text = arguments.get("search", "").lower()
-            if search_text:
-                nodes = [
-                    n for n in nodes
-                    if search_text in n.name.lower()
-                    or search_text in json.dumps(n.properties, ensure_ascii=False).lower()
-                ]
-            # Property filter
-            prop_filter = arguments.get("property_filter", {})
-            if prop_filter:
-                def matches_props(node_props, filters):
-                    return all(
-                        str(node_props.get(k, "")).lower() == str(v).lower()
-                        for k, v in filters.items()
-                    )
-                nodes = [n for n in nodes if matches_props(n.properties, prop_filter)]
-            # Build result
-            result_nodes = [_node_to_dict(n) for n in nodes]
-            # Optionally include connections
-            if arguments.get("include_connections", False):
-                for rn in result_nodes:
-                    node_id = uuid.UUID(rn["id"])
-                    edge_result = await session.execute(
-                        select(Edge).where(
-                            or_(Edge.source_id == node_id, Edge.target_id == node_id)
-                        )
-                    )
-                    rn["connections"] = [_edge_to_dict(e) for e in edge_result.scalars().all()]
-            return result_nodes
-
-        elif name == "import_k8s_yaml":
-            result = await import_k8s_yaml(
-                session,
-                arguments["yaml_content"],
-                namespace_filter=arguments.get("namespace_filter"),
-            )
-            return result
 
         else:
             return {"error": f"Unknown tool: {name}"}
@@ -426,7 +267,7 @@ async def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Any:
 
 SERVER_INFO = {
     "name": "wng",
-    "version": "1.0.0",
+    "version": "2.0.0",
 }
 
 CAPABILITIES = {
@@ -452,7 +293,6 @@ async def handle_request(request: dict) -> dict:
         }
 
     elif method == "notifications/initialized":
-        # No response needed for notifications
         return None
 
     elif method == "tools/list":
@@ -511,7 +351,6 @@ async def main():
     protocol = asyncio.StreamReaderProtocol(reader)
     await asyncio.get_event_loop().connect_read_pipe(lambda: protocol, sys.stdin)
 
-    # For writing to stdout
     write_transport, write_protocol = await asyncio.get_event_loop().connect_write_pipe(
         asyncio.streams.FlowControlMixin, sys.stdout
     )
@@ -527,7 +366,6 @@ async def main():
 
             buffer += chunk
 
-            # Process complete messages (newline-delimited JSON)
             while b"\n" in buffer:
                 line, buffer = buffer.split(b"\n", 1)
                 line = line.strip()
@@ -556,7 +394,6 @@ async def main():
 
 
 if __name__ == "__main__":
-    # Add project root to path
     import os
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     asyncio.run(main())

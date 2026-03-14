@@ -15,9 +15,9 @@ export interface SidebarProps {
 
 const defaultMenuItems: SidebarMenuItem[] = [
   { label: '그래프', icon: '🔗', active: true },
-  { label: '검색', icon: '🔍' },
   { label: '업로드', icon: '📤' },
-  { label: '설정', icon: '⚙️' },
+  { label: '탐색', icon: '🔍' },
+  { label: '도움말', icon: '❓' },
 ]
 
 export function Sidebar({

@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-"""Tests for the MCP server tool handlers.
-
-Tests the tool handler functions directly (without stdio transport)
-to verify graph CRUD, search, path-finding, and K8s import work correctly
-when invoked as MCP tool calls.
-"""
+"""Tests for the MCP server — 6 tools: read_memory, create_memory, update_memory, delete_memory, create_link, delete_link."""
 
 import os
 import uuid
@@ -16,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.db import Base
 
-# Use a separate in-memory DB for MCP tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 _test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 _TestSession = async_sessionmaker(_test_engine, class_=AsyncSession, expire_on_commit=False)
@@ -31,13 +25,6 @@ async def setup_mcp_db():
         await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest_asyncio.fixture
-async def db():
-    async with _TestSession() as session:
-        yield session
-
-
-# Patch the MCP server's _get_session to use our test DB
 @pytest.fixture(autouse=True)
 def patch_mcp_session(monkeypatch):
     async def mock_get_session():
@@ -47,58 +34,46 @@ def patch_mcp_session(monkeypatch):
     monkeypatch.setattr(mcp_server, "_get_session", mock_get_session)
 
 
-FIXTURE_PATH = os.path.join(os.path.dirname(__file__), "fixtures", "complex_k8s_cluster.yaml")
-
-
-@pytest.fixture
-def complex_yaml() -> str:
-    with open(FIXTURE_PATH) as f:
-        return f.read()
-
-
-# ── Basic CRUD tests ────────────────────────────────────────
+# ── create_memory tests ──────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_create_and_get_node():
+async def test_create_memory():
     from mcp_server import handle_tool_call
 
-    result = await handle_tool_call("create_node", {
+    result = await handle_tool_call("create_memory", {
         "name": "Alice",
         "type": "person",
         "properties": {"role": "engineer"},
     })
     assert result["name"] == "Alice"
     assert result["type"] == "person"
-    node_id = result["id"]
-
-    # Get the node
-    got = await handle_tool_call("get_node", {"node_id": node_id})
-    assert got["name"] == "Alice"
-    assert got["properties"]["role"] == "engineer"
+    assert "id" in result
 
 
 @pytest.mark.asyncio
-async def test_list_nodes():
+async def test_create_memory_minimal():
     from mcp_server import handle_tool_call
 
-    await handle_tool_call("create_node", {"name": "A", "type": "person"})
-    await handle_tool_call("create_node", {"name": "B", "type": "team"})
-    await handle_tool_call("create_node", {"name": "C", "type": "person"})
+    result = await handle_tool_call("create_memory", {
+        "name": "FastAPI",
+        "type": "tech",
+    })
+    assert result["name"] == "FastAPI"
+    assert result["type"] == "tech"
 
-    all_nodes = await handle_tool_call("list_nodes", {})
-    assert len(all_nodes) == 3
 
-    persons = await handle_tool_call("list_nodes", {"type_filter": "person"})
-    assert len(persons) == 2
+# ── update_memory tests ──────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_update_node():
+async def test_update_memory():
     from mcp_server import handle_tool_call
 
-    node = await handle_tool_call("create_node", {"name": "Old", "type": "tech"})
-    updated = await handle_tool_call("update_node", {
+    node = await handle_tool_call("create_memory", {
+        "name": "Old", "type": "tech",
+    })
+    updated = await handle_tool_call("update_memory", {
         "node_id": node["id"],
         "name": "New",
         "properties": {"version": "2.0"},
@@ -107,204 +82,107 @@ async def test_update_node():
     assert updated["properties"]["version"] == "2.0"
 
 
+# ── delete_memory tests ──────────────────────────────────────
+
+
 @pytest.mark.asyncio
-async def test_delete_node():
+async def test_delete_memory():
     from mcp_server import handle_tool_call
 
-    node = await handle_tool_call("create_node", {"name": "X", "type": "tech"})
-    result = await handle_tool_call("delete_node", {"node_id": node["id"]})
+    node = await handle_tool_call("create_memory", {
+        "name": "X", "type": "tech",
+    })
+    result = await handle_tool_call("delete_memory", {
+        "node_id": node["id"],
+    })
     assert result["deleted"] is True
 
-    got = await handle_tool_call("get_node", {"node_id": node["id"]})
-    assert "error" in got
+
+# ── create_link tests ────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_create_and_list_edges():
+async def test_create_link():
     from mcp_server import handle_tool_call
 
-    n1 = await handle_tool_call("create_node", {"name": "A", "type": "person"})
-    n2 = await handle_tool_call("create_node", {"name": "B", "type": "team"})
+    n1 = await handle_tool_call("create_memory", {"name": "A", "type": "person"})
+    n2 = await handle_tool_call("create_memory", {"name": "B", "type": "team"})
 
-    edge = await handle_tool_call("create_edge", {
+    edge = await handle_tool_call("create_link", {
         "source_id": n1["id"],
         "target_id": n2["id"],
         "type": "member_of",
     })
     assert edge["type"] == "member_of"
+    assert "id" in edge
 
-    edges = await handle_tool_call("list_edges", {})
-    assert len(edges) == 1
+
+# ── delete_link tests ────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_delete_edge():
+async def test_delete_link():
     from mcp_server import handle_tool_call
 
-    n1 = await handle_tool_call("create_node", {"name": "A", "type": "person"})
-    n2 = await handle_tool_call("create_node", {"name": "B", "type": "team"})
-    edge = await handle_tool_call("create_edge", {
-        "source_id": n1["id"],
-        "target_id": n2["id"],
-        "type": "test",
+    n1 = await handle_tool_call("create_memory", {"name": "A", "type": "person"})
+    n2 = await handle_tool_call("create_memory", {"name": "B", "type": "team"})
+    edge = await handle_tool_call("create_link", {
+        "source_id": n1["id"], "target_id": n2["id"], "type": "test",
     })
 
-    result = await handle_tool_call("delete_edge", {"edge_id": edge["id"]})
+    result = await handle_tool_call("delete_link", {
+        "edge_id": edge["id"],
+    })
     assert result["deleted"] is True
 
 
-@pytest.mark.asyncio
-async def test_search_nodes():
-    from mcp_server import handle_tool_call
-
-    await handle_tool_call("create_node", {"name": "FastAPI Framework", "type": "tech"})
-    await handle_tool_call("create_node", {"name": "Django Framework", "type": "tech"})
-    await handle_tool_call("create_node", {"name": "Alice Smith", "type": "person"})
-
-    results = await handle_tool_call("search_nodes", {"query": "Framework"})
-    assert len(results) == 2
-
-    results = await handle_tool_call("search_nodes", {"query": "Alice"})
-    assert len(results) == 1
+# ── read_memory tests ────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_find_path():
+async def test_read_memory_by_name():
     from mcp_server import handle_tool_call
 
-    n1 = await handle_tool_call("create_node", {"name": "A", "type": "person"})
-    n2 = await handle_tool_call("create_node", {"name": "B", "type": "team"})
-    n3 = await handle_tool_call("create_node", {"name": "C", "type": "project"})
+    await handle_tool_call("create_memory", {"name": "FastAPI", "type": "tech"})
+    await handle_tool_call("create_memory", {"name": "Django", "type": "tech"})
+    await handle_tool_call("create_memory", {"name": "Alice", "type": "person"})
 
-    await handle_tool_call("create_edge", {"source_id": n1["id"], "target_id": n2["id"], "type": "member_of"})
-    await handle_tool_call("create_edge", {"source_id": n2["id"], "target_id": n3["id"], "type": "works_on"})
+    result = await handle_tool_call("read_memory", {"query": "tech"})
+    assert result["seed_count"] >= 2
+    names = [r["name"] for r in result["results"]]
+    assert "FastAPI" in names
+    assert "Django" in names
 
-    result = await handle_tool_call("find_path", {
-        "source_id": n1["id"],
-        "target_id": n3["id"],
+
+@pytest.mark.asyncio
+async def test_read_memory_with_traversal():
+    from mcp_server import handle_tool_call
+
+    team = await handle_tool_call("create_memory", {"name": "개발팀", "type": "team"})
+    person = await handle_tool_call("create_memory", {"name": "김철수", "type": "person"})
+    tech = await handle_tool_call("create_memory", {"name": "FastAPI", "type": "tech"})
+
+    await handle_tool_call("create_link", {
+        "source_id": team["id"], "target_id": person["id"], "type": "has_member",
     })
-    assert result["found"] is True
-    assert len(result["nodes"]) == 3
-    assert len(result["edges"]) == 2
-
-
-@pytest.mark.asyncio
-async def test_find_path_not_found():
-    from mcp_server import handle_tool_call
-
-    n1 = await handle_tool_call("create_node", {"name": "X", "type": "person"})
-    n2 = await handle_tool_call("create_node", {"name": "Y", "type": "person"})
-
-    result = await handle_tool_call("find_path", {
-        "source_id": n1["id"],
-        "target_id": n2["id"],
-    })
-    assert result["found"] is False
-
-
-@pytest.mark.asyncio
-async def test_get_node_relations():
-    from mcp_server import handle_tool_call
-
-    n1 = await handle_tool_call("create_node", {"name": "A", "type": "person"})
-    n2 = await handle_tool_call("create_node", {"name": "B", "type": "team"})
-    n3 = await handle_tool_call("create_node", {"name": "C", "type": "project"})
-
-    await handle_tool_call("create_edge", {"source_id": n1["id"], "target_id": n2["id"], "type": "member_of"})
-    await handle_tool_call("create_edge", {"source_id": n2["id"], "target_id": n3["id"], "type": "works_on"})
-
-    # n2 should have 2 relations (one incoming, one outgoing)
-    relations = await handle_tool_call("get_node_relations", {"node_id": n2["id"]})
-    assert len(relations) == 2
-
-
-# ── K8s import via MCP ──────────────────────────────────────
-
-
-@pytest.mark.asyncio
-async def test_import_k8s_yaml_via_mcp(complex_yaml: str):
-    from mcp_server import handle_tool_call
-
-    result = await handle_tool_call("import_k8s_yaml", {
-        "yaml_content": complex_yaml,
-    })
-    assert result["nodes_created"] > 40
-    assert result["edges_created"] > 80
-
-    # Verify nodes are searchable after import
-    nodes = await handle_tool_call("search_nodes", {"query": "api-gateway"})
-    assert len(nodes) > 0
-
-    # Verify edges exist
-    edges = await handle_tool_call("list_edges", {"limit": 200})
-    edge_types = {e["type"] for e in edges}
-    assert "owns" in edge_types
-    assert "selects" in edge_types
-    assert "contains" in edge_types
-    assert "mounts" in edge_types
-    assert "routes_to" in edge_types
-    assert "scales" in edge_types
-
-
-@pytest.mark.asyncio
-async def test_import_k8s_with_namespace_filter(complex_yaml: str):
-    from mcp_server import handle_tool_call
-
-    result = await handle_tool_call("import_k8s_yaml", {
-        "yaml_content": complex_yaml,
-        "namespace_filter": "monitoring",
-    })
-    # Only monitoring namespace resources
-    assert result["nodes_created"] < 15
-
-
-@pytest.mark.asyncio
-async def test_k8s_path_finding_via_mcp(complex_yaml: str):
-    """After K8s import, find paths between resources using MCP tools."""
-    from mcp_server import handle_tool_call
-
-    result = await handle_tool_call("import_k8s_yaml", {
-        "yaml_content": complex_yaml,
+    await handle_tool_call("create_link", {
+        "source_id": person["id"], "target_id": tech["id"], "type": "uses",
     })
 
-    nodes = result["nodes"]
-    ingress = next((n for n in nodes if n["type"] == "k8s-ingress"), None)
-    pod = next((n for n in nodes if n["type"] == "k8s-pod" and "api-gateway" in n["name"]), None)
-
-    if ingress and pod:
-        path = await handle_tool_call("find_path", {
-            "source_id": ingress["id"],
-            "target_id": pod["id"],
-        })
-        assert path["found"] is True
+    result = await handle_tool_call("read_memory", {"query": "개발팀"})
+    names = [r["name"] for r in result["results"]]
+    assert "개발팀" in names
+    assert "김철수" in names or "FastAPI" in names
 
 
 @pytest.mark.asyncio
-async def test_k8s_node_relations_via_mcp(complex_yaml: str):
-    """Check relations of a specific K8s resource after import."""
+async def test_read_memory_no_results():
     from mcp_server import handle_tool_call
 
-    result = await handle_tool_call("import_k8s_yaml", {
-        "yaml_content": complex_yaml,
-    })
-
-    # Find the api-gateway deployment
-    deployment = next(
-        (n for n in result["nodes"] if n["type"] == "k8s-deployment" and "api-gateway" in n["name"]),
-        None,
-    )
-    assert deployment is not None
-
-    # Verify edges were created during import
-    import_edges = result["edges"]
-    deploy_edges = [
-        e for e in import_edges
-        if e["source_id"] == deployment["id"] or e["target_id"] == deployment["id"]
-    ]
-    edge_types = {e["type"] for e in deploy_edges}
-    # Deployment should have: owns (→ RS), scales (← HPA), contains (← namespace)
-    assert "owns" in edge_types, f"Expected 'owns' in {edge_types}"
-    assert len(deploy_edges) >= 2
+    await handle_tool_call("create_memory", {"name": "Test", "type": "tech"})
+    result = await handle_tool_call("read_memory", {"query": "존재하지않는노드"})
+    assert result["seed_count"] == 0
+    assert len(result["results"]) == 0
 
 
 # ── MCP Protocol tests ──────────────────────────────────────
@@ -315,13 +193,10 @@ async def test_handle_request_initialize():
     from mcp_server import handle_request
 
     response = await handle_request({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "initialize",
-        "params": {},
+        "jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {},
     })
     assert response["result"]["serverInfo"]["name"] == "wng"
-    assert "tools" in response["result"]["capabilities"]
+    assert response["result"]["serverInfo"]["version"] == "2.0.0"
 
 
 @pytest.mark.asyncio
@@ -329,38 +204,27 @@ async def test_handle_request_tools_list():
     from mcp_server import handle_request
 
     response = await handle_request({
-        "jsonrpc": "2.0",
-        "id": 2,
-        "method": "tools/list",
-        "params": {},
+        "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {},
     })
     tools = response["result"]["tools"]
     tool_names = {t["name"] for t in tools}
-    assert "create_node" in tool_names
-    assert "import_k8s_yaml" in tool_names
-    assert "find_path" in tool_names
-    assert "get_node_relations" in tool_names
-    assert "query_nodes" in tool_names
-    assert len(tools) == 13
+    assert tool_names == {"read_memory", "create_memory", "update_memory", "delete_memory", "create_link", "delete_link"}
+    assert len(tools) == 6
 
 
 @pytest.mark.asyncio
 async def test_handle_request_tools_call():
     from mcp_server import handle_request
+    import json
 
     response = await handle_request({
-        "jsonrpc": "2.0",
-        "id": 3,
-        "method": "tools/call",
+        "jsonrpc": "2.0", "id": 3, "method": "tools/call",
         "params": {
-            "name": "create_node",
+            "name": "create_memory",
             "arguments": {"name": "Test", "type": "tech"},
         },
     })
     content = response["result"]["content"]
-    assert len(content) == 1
-    assert content[0]["type"] == "text"
-    import json
     data = json.loads(content[0]["text"])
     assert data["name"] == "Test"
 
@@ -370,9 +234,6 @@ async def test_handle_request_ping():
     from mcp_server import handle_request
 
     response = await handle_request({
-        "jsonrpc": "2.0",
-        "id": 4,
-        "method": "ping",
-        "params": {},
+        "jsonrpc": "2.0", "id": 4, "method": "ping", "params": {},
     })
     assert response["result"] == {}

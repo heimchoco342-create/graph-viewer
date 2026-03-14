@@ -42,14 +42,13 @@ export function SearchPage() {
 
   const menuItems = [
     { label: '그래프', icon: '🔗', active: location.pathname === '/' },
-    { label: '검색', icon: '🔍', active: location.pathname === '/search' },
     { label: '업로드', icon: '📤', active: location.pathname === '/upload' },
-    { label: '경로', icon: '🗺️', active: location.pathname === '/path' },
-    { label: '쿼리', icon: '🧪', active: location.pathname === '/query' },
+    { label: '탐색', icon: '🔍', active: location.pathname === '/query' },
+    { label: '도움말', icon: '❓', active: location.pathname === '/help' },
   ];
 
   const handleMenuClick = (label: string) => {
-    const routes: Record<string, string> = { '그래프': '/', '검색': '/search', '업로드': '/upload', '경로': '/path', '쿼리': '/query' };
+    const routes: Record<string, string> = { '그래프': '/', '업로드': '/upload', '탐색': '/query', '도움말': '/help' };
     const route = routes[label];
     if (route) navigate(route);
   };

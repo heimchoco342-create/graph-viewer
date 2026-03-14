@@ -321,14 +321,13 @@ export function GraphPage() {
 
   const menuItems = [
     { label: '그래프', icon: '🔗', active: location.pathname === '/' },
-    { label: '검색', icon: '🔍', active: location.pathname === '/search' },
     { label: '업로드', icon: '📤', active: location.pathname === '/upload' },
-    { label: '경로', icon: '🗺️', active: location.pathname === '/path' },
-    { label: '쿼리', icon: '🧪', active: location.pathname === '/query' },
+    { label: '탐색', icon: '🔍', active: location.pathname === '/query' },
+    { label: '도움말', icon: '❓', active: location.pathname === '/help' },
   ];
 
   const handleMenuClick = (label: string) => {
-    const routes: Record<string, string> = { '그래프': '/', '검색': '/search', '업로드': '/upload', '경로': '/path', '쿼리': '/query' };
+    const routes: Record<string, string> = { '그래프': '/', '업로드': '/upload', '탐색': '/query', '도움말': '/help' };
     const route = routes[label];
     if (route) navigate(route);
   };
@@ -397,6 +396,32 @@ export function GraphPage() {
           </button>
         </div>
       </header>
+      {/* Graph summary bar */}
+      {selectedGraphId && graphNodes.length > 0 && (
+        <div className="flex items-center gap-4 px-4 py-1.5 border-b border-border bg-bg-primary text-xs text-text-secondary shrink-0 overflow-x-auto">
+          <span>
+            <span className="text-text-primary font-medium">{graphNodes.length}</span> 노드
+          </span>
+          <span className="text-border">|</span>
+          <span>
+            <span className="text-text-primary font-medium">{graphEdges.length}</span> 엣지
+          </span>
+          <span className="text-border">|</span>
+          <span>
+            타입: {Array.from(new Set(graphNodes.map((n) => n.type))).sort().map((t) => {
+              const count = graphNodes.filter((n) => n.type === t).length;
+              const badgeColor = NODE_TYPE_COLORS[t] ?? '#6b7280';
+              return (
+                <span key={t} className="inline-flex items-center gap-1 mr-2">
+                  <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: badgeColor }} />
+                  {t}
+                  <span className="text-text-secondary">({count})</span>
+                </span>
+              );
+            })}
+          </span>
+        </div>
+      )}
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 relative">
           <GraphCanvas

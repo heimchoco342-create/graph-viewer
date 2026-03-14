@@ -1,7 +1,7 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 
 export function CircleNode({ data }: NodeProps) {
-  const { label, color, dimmed } = data as { label: string; color: string; dimmed?: boolean };
+  const { label, color, dimmed, ringColor } = data as { label: string; color: string; dimmed?: boolean; ringColor?: string };
 
   return (
     <div
@@ -15,8 +15,11 @@ export function CircleNode({ data }: NodeProps) {
           height: 44,
           borderRadius: '50%',
           background: color ?? '#6b7280',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          boxShadow: ringColor
+            ? `0 0 0 3px ${ringColor}, 0 0 12px ${ringColor}`
+            : '0 2px 8px rgba(0,0,0,0.3)',
           cursor: 'pointer',
+          transition: 'box-shadow 0.3s ease',
         }}
       >
         <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
