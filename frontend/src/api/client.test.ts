@@ -7,7 +7,7 @@ describe('apiClient', () => {
   });
 
   it('should have baseURL set', () => {
-    expect(apiClient.defaults.baseURL).toBe('http://localhost:8000');
+    expect(apiClient.defaults.baseURL).toBe('/api');
   });
 
   it('should add Authorization header when token exists', () => {

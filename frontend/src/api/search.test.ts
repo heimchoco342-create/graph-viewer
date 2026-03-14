@@ -13,7 +13,7 @@ describe('search API', () => {
 
   it('searchNodes sends query param', async () => {
     const nodes = [{ id: '1', type: 'person', name: 'Test', properties: {}, created_at: '', updated_at: '' }];
-    vi.mocked(apiClient.get).mockResolvedValue({ data: nodes });
+    vi.mocked(apiClient.get).mockResolvedValue({ data: { nodes, total: 1 } });
 
     const result = await searchNodes('Test');
     expect(apiClient.get).toHaveBeenCalledWith('/api/graph/search', { params: { q: 'Test' } });

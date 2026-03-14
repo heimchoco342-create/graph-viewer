@@ -42,6 +42,12 @@ export interface PathResult {
   nodes: GraphNode[];
   edges: GraphEdge[];
   total_weight: number;
+  found: boolean;
+}
+
+export interface SearchResponse {
+  nodes: GraphNode[];
+  total: number;
 }
 
 export interface Suggestion {
