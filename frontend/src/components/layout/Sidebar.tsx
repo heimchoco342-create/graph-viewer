@@ -21,7 +21,7 @@ export function Sidebar({
   onMenuClick,
 }: SidebarProps) {
   return (
-    <aside className="w-[280px] bg-bg-secondary border-r border-border flex flex-col">
+    <aside className="w-[200px] shrink-0 bg-bg-secondary border-r border-border flex flex-col">
       <div className="p-6 border-b border-border">
         <h1 className="text-xl font-bold text-text-primary">Knowledge Graph</h1>
       </div>

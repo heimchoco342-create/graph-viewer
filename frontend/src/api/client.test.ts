@@ -1,34 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-// We need to mock localStorage before importing client
-const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-  length: 0,
-  key: vi.fn(),
-};
-
-Object.defineProperty(globalThis, 'localStorage', {
-  value: localStorageMock,
-  writable: true,
-});
-
-// Import after mocking
-const { default: apiClient } = await import('./client');
+import { describe, it, expect, beforeEach } from 'vitest';
+import apiClient from './client';
 
 describe('apiClient', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    window.localStorage.clear();
   });
 
   it('should have baseURL set', () => {
-    expect(apiClient.defaults.baseURL).toBe('http://localhost:8000');
+    expect(apiClient.defaults.baseURL).toBe('');
   });
 
   it('should add Authorization header when token exists', () => {
-    localStorageMock.getItem.mockReturnValue('test-jwt-token');
+    window.localStorage.setItem('token', 'test-jwt-token');
 
     const interceptors = apiClient.interceptors.request as unknown as {
       handlers: { fulfilled: (config: Record<string, unknown>) => Record<string, unknown> }[];
@@ -40,8 +23,6 @@ describe('apiClient', () => {
   });
 
   it('should not add Authorization header when no token', () => {
-    localStorageMock.getItem.mockReturnValue(null);
-
     const interceptors = apiClient.interceptors.request as unknown as {
       handlers: { fulfilled: (config: Record<string, unknown>) => Record<string, unknown> }[];
     };
