@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 from typing import List
 
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -25,9 +28,19 @@ class Settings(BaseSettings):
     OPENRAG_URL: str = "http://localhost:8100"
     OPENRAG_API_KEY: str = ""
 
+    # Limits
+    DEFAULT_LIST_LIMIT: int = 10000
+    LOG_BUFFER_SIZE: int = 200
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    if s.JWT_SECRET == "change-me-in-production":
+        logger.warning(
+            "JWT_SECRET is using the default value. "
+            "Set JWT_SECRET environment variable for production use."
+        )
+    return s

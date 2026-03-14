@@ -8,6 +8,7 @@ import type { PathStep } from '../components/path/PathFinder';
 import { usePathStore } from '../store/pathStore';
 import { useGraphStore } from '../store/graphStore';
 import { useAuthStore } from '../store/authStore';
+import { getMenuItemsWithActive, navigateByLabel } from '../constants/navigation';
 
 export function PathPage() {
   const navigate = useNavigate();
@@ -30,19 +31,8 @@ export function PathPage() {
       }))
     : undefined;
 
-  const menuItems = [
-    { label: '그래프', icon: '🔗', active: location.pathname === '/' },
-    { label: '업로드', icon: '📤', active: location.pathname === '/upload' },
-    { label: '탐색', icon: '🔍', active: location.pathname === '/query' },
-    { label: '로그', icon: '📋', active: location.pathname === '/logs' },
-    { label: '도움말', icon: '❓', active: location.pathname === '/help' },
-  ];
-
-  const handleMenuClick = (label: string) => {
-    const routes: Record<string, string> = { '그래프': '/', '업로드': '/upload', '탐색': '/query', '로그': '/logs', '도움말': '/help' };
-    const route = routes[label];
-    if (route) navigate(route);
-  };
+  const menuItems = getMenuItemsWithActive(location.pathname);
+  const handleMenuClick = (label: string) => navigateByLabel(label, navigate);
 
   return (
     <AppLayout sidebar={<Sidebar menuItems={menuItems} onMenuClick={handleMenuClick} />}>

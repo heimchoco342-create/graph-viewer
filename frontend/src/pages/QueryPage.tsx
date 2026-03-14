@@ -10,23 +10,8 @@ import { useGraphStore } from '../store/graphStore';
 import { usePathStore } from '../store/pathStore';
 import { NODE_TYPE_BADGE_COLORS } from '../constants/nodeTypes';
 import { BfsSearchPanel } from '../components/graph/BfsSearchPanel';
+import { getMenuItemsWithActive, navigateByLabel } from '../constants/navigation';
 import type { GraphNode, GraphEdge } from '../types';
-
-const MENU_ITEMS = [
-  { label: '그래프', icon: '🔗' },
-  { label: '업로드', icon: '📤' },
-  { label: '탐색', icon: '🔍' },
-  { label: '로그', icon: '📋' },
-  { label: '도움말', icon: '❓' },
-];
-
-const ROUTES: Record<string, string> = {
-  '그래프': '/',
-  '업로드': '/upload',
-  '탐색': '/query',
-  '로그': '/logs',
-  '도움말': '/help',
-};
 
 type TabKey = 'nodes' | 'edges' | 'path' | 'stats' | 'bfs';
 
@@ -179,15 +164,8 @@ export function QueryPage() {
     [setSelectedNode, navigate],
   );
 
-  const menuItems = MENU_ITEMS.map((m) => ({
-    ...m,
-    active: location.pathname === ROUTES[m.label],
-  }));
-
-  const handleMenuClick = (label: string) => {
-    const route = ROUTES[label];
-    if (route) navigate(route);
-  };
+  const menuItems = getMenuItemsWithActive(location.pathname);
+  const handleMenuClick = (label: string) => navigateByLabel(label, navigate);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
 

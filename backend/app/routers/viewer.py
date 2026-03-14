@@ -21,6 +21,7 @@ from app.models.user import User
 from app.models.node import Node
 from app.models.edge import Edge
 from app.services import graph_service
+from app.services.auth_service import hash_password, verify_password
 
 router = APIRouter(prefix="/api")
 settings = get_settings()
@@ -33,18 +34,6 @@ class AuthPayload(BaseModel):
     email: str
     password: str
     name: Optional[str] = None
-
-
-def _hash_password(pw: str) -> str:
-    from passlib.context import CryptContext
-    _pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    return _pwd_ctx.hash(pw)
-
-
-def _verify_password(plain: str, hashed: str) -> bool:
-    from passlib.context import CryptContext
-    _pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    return _pwd_ctx.verify(plain, hashed)
 
 
 def _create_token(user_id: str) -> str:
@@ -67,7 +56,7 @@ def _decode_token(token: str) -> str:
 async def login(body: AuthPayload, db: AsyncSession = Depends(get_async_session)):
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
-    if not user or not _verify_password(body.password, user.password_hash):
+    if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return {"access_token": _create_token(str(user.id)), "token_type": "bearer"}
 
@@ -79,7 +68,7 @@ async def register(body: AuthPayload, db: AsyncSession = Depends(get_async_sessi
         raise HTTPException(status_code=409, detail="Email already registered")
     user = User(
         email=body.email,
-        password_hash=_hash_password(body.password),
+        password_hash=hash_password(body.password),
         name=body.name or body.email.split("@")[0],
     )
     db.add(user)
@@ -176,7 +165,7 @@ async def get_graph_detail(graph_id: str, db: AsyncSession = Depends(get_async_s
 
 @router.get("/graph/nodes")
 async def list_nodes(db: AsyncSession = Depends(get_async_session)):
-    nodes = await graph_service.list_nodes(db, limit=10000)
+    nodes = await graph_service.list_nodes(db, limit=settings.DEFAULT_LIST_LIMIT)
     return [_node_dict(n) for n in nodes]
 
 
@@ -185,7 +174,7 @@ async def list_nodes(db: AsyncSession = Depends(get_async_session)):
 
 @router.get("/graph/edges")
 async def list_edges(db: AsyncSession = Depends(get_async_session)):
-    edges = await graph_service.list_edges(db, limit=10000)
+    edges = await graph_service.list_edges(db, limit=settings.DEFAULT_LIST_LIMIT)
     return [_edge_dict(e) for e in edges]
 
 

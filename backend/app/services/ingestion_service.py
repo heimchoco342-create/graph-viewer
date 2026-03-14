@@ -144,14 +144,10 @@ async def _process_ingestion(job: IngestionJob, content: bytes) -> None:
             "relations": relations,
         }
     except httpx.ConnectError:
-        # OpenRAG not running - graceful fallback
-        job.status = JobStatus.COMPLETED
-        job.result = {
-            "message": "OpenRAG not available. File stored but not processed.",
-            "entities_extracted": 0,
-            "relations_extracted": 0,
-        }
-        logger.warning("OpenRAG not reachable, falling back to stub mode")
+        # OpenRAG not running — mark as failed
+        job.status = JobStatus.FAILED
+        job.error = "OpenRAG not available. File stored but not processed."
+        logger.warning("OpenRAG not reachable for %s", job.filename)
     except Exception as e:
         job.status = JobStatus.FAILED
         job.error = str(e)

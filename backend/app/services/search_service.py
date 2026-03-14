@@ -58,8 +58,6 @@ async def search_graph(
         result_limit: Maximum results to return
         target_types: Filter results to these node types only
     """
-    embedding_svc = get_embedding_service()
-
     # Check if pgvector embedding column is available
     has_embeddings = await _has_embedding_column(db)
 
@@ -72,7 +70,6 @@ async def search_graph(
             seed_limit=seed_limit,
             result_limit=result_limit,
             target_types=target_types,
-            embedding_svc=embedding_svc,
         )
     else:
         return await _search_with_keywords(
@@ -95,6 +92,7 @@ async def _has_embedding_column(db: AsyncSession) -> bool:
         )
         return result.scalar_one_or_none() is not None
     except Exception:
+        logger.warning("Failed to check embedding column existence", exc_info=True)
         return False
 
 
@@ -107,9 +105,9 @@ async def _search_with_vectors(
     seed_limit: int,
     result_limit: int,
     target_types: list[str] | None,
-    embedding_svc,
 ) -> SearchResponse:
     """Full vector + recursive CTE search."""
+    embedding_svc = get_embedding_service()
     query_embedding = await embedding_svc.embed(query)
 
     # Build graph_id filter clause
@@ -210,121 +208,49 @@ async def _search_with_keywords(
     result_limit: int,
     target_types: list[str] | None,
 ) -> SearchResponse:
-    """Fallback: ILIKE keyword search + recursive CTE (no vector ranking)."""
+    """Fallback: ILIKE keyword search + recursive CTE (no vector ranking). PostgreSQL only."""
     graph_filter = "AND n.graph_id = :graph_id" if graph_id else ""
-    type_filter = ""
 
-    # For SQLite compatibility, use LIKE instead of ILIKE
-    try:
-        await db.execute(text("SELECT 1"))
-        dialect = db.bind.dialect.name if db.bind else "unknown"
-    except Exception:
-        dialect = "unknown"
+    type_filter_clause = (
+        "AND type = ANY(:target_types)" if target_types else ""
+    )
 
-    like_op = "ILIKE" if dialect == "postgresql" else "LIKE"
-    is_pg = dialect == "postgresql"
+    sql = text(f"""
+    WITH RECURSIVE seed_nodes AS (
+        SELECT n.id, n.name, n.type, n.properties,
+               0 AS depth,
+               CAST(1.0 AS REAL) AS score
+        FROM nodes n
+        WHERE (n.name ILIKE :pattern OR n.type ILIKE :pattern)
+        {graph_filter}
+        LIMIT :seed_limit
+    ),
+    traversal AS (
+        SELECT s.id, s.name, s.type, s.properties, s.depth, s.score
+        FROM seed_nodes s
 
-    # PostgreSQL: DISTINCT ON for dedup; SQLite: GROUP BY with MIN/MAX
-    if is_pg:
-        dedup_sql = """
+        UNION ALL
+
+        SELECT n.id, n.name, n.type, n.properties,
+               t.depth + 1 AS depth,
+               CAST(1.0 / (t.depth + 2) AS REAL) AS score
+        FROM traversal t
+        JOIN edges e ON (e.source_id = t.id OR e.target_id = t.id)
+        JOIN nodes n ON n.id = CASE
+            WHEN e.source_id = t.id THEN e.target_id
+            ELSE e.source_id
+        END
+        WHERE t.depth < :max_depth
+    ) CYCLE id SET is_cycle USING path
     SELECT * FROM (
         SELECT DISTINCT ON (id) id, name, type, properties, depth, score
         FROM traversal
-        WHERE NOT is_cycle {type_filter}
+        WHERE NOT is_cycle {type_filter_clause}
         ORDER BY id, depth ASC, score DESC
     ) sub
     ORDER BY score DESC, depth ASC
     LIMIT :result_limit
-        """
-    else:
-        dedup_sql = """
-    SELECT id, name, type, properties,
-           MIN(depth) AS depth,
-           MAX(score) AS score
-    FROM traversal
-    {type_filter}
-    GROUP BY id, name, type, properties
-    ORDER BY score DESC, depth ASC
-    LIMIT :result_limit
-        """
-
-    if is_pg:
-        type_filter_clause = (
-            "AND type IN (" + ",".join(f"'{t}'" for t in target_types) + ")"
-            if target_types else ""
-        )
-    else:
-        type_filter_clause = (
-            "WHERE type IN (" + ",".join(f"'{t}'" for t in target_types) + ")"
-            if target_types else ""
-        )
-    dedup_sql = dedup_sql.replace("{type_filter}", type_filter_clause)
-
-    if is_pg:
-        # PostgreSQL: use CYCLE clause for cycle detection
-        sql = text(f"""
-        WITH RECURSIVE seed_nodes AS (
-            SELECT n.id, n.name, n.type, n.properties,
-                   0 AS depth,
-                   CAST(1.0 AS REAL) AS score
-            FROM nodes n
-            WHERE (n.name {like_op} :pattern OR n.type {like_op} :pattern)
-            {graph_filter}
-            LIMIT :seed_limit
-        ),
-        traversal AS (
-            SELECT s.id, s.name, s.type, s.properties, s.depth, s.score
-            FROM seed_nodes s
-
-            UNION ALL
-
-            SELECT n.id, n.name, n.type, n.properties,
-                   t.depth + 1 AS depth,
-                   CAST(1.0 / (t.depth + 2) AS REAL) AS score
-            FROM traversal t
-            JOIN edges e ON (e.source_id = t.id OR e.target_id = t.id)
-            JOIN nodes n ON n.id = CASE
-                WHEN e.source_id = t.id THEN e.target_id
-                ELSE e.source_id
-            END
-            WHERE t.depth < :max_depth
-        ) CYCLE id SET is_cycle USING path
-        {dedup_sql}
-        """)
-    else:
-        # SQLite: use visited path string for cycle detection
-        sql = text(f"""
-        WITH RECURSIVE seed_nodes AS (
-            SELECT n.id, n.name, n.type, n.properties,
-                   0 AS depth,
-                   CAST(1.0 AS REAL) AS score
-            FROM nodes n
-            WHERE (n.name {like_op} :pattern OR n.type {like_op} :pattern)
-            {graph_filter}
-            LIMIT :seed_limit
-        ),
-        traversal AS (
-            SELECT s.id, s.name, s.type, s.properties, s.depth, s.score,
-                   ',' || CAST(s.id AS TEXT) || ',' AS visited
-            FROM seed_nodes s
-
-            UNION ALL
-
-            SELECT n.id, n.name, n.type, n.properties,
-                   t.depth + 1 AS depth,
-                   CAST(1.0 / (t.depth + 2) AS REAL) AS score,
-                   t.visited || CAST(n.id AS TEXT) || ','
-            FROM traversal t
-            JOIN edges e ON (e.source_id = t.id OR e.target_id = t.id)
-            JOIN nodes n ON n.id = CASE
-                WHEN e.source_id = t.id THEN e.target_id
-                ELSE e.source_id
-            END
-            WHERE t.depth < :max_depth
-              AND t.visited NOT LIKE '%,' || CAST(n.id AS TEXT) || ',%'
-        )
-        {dedup_sql}
-        """)
+    """)
 
     params: dict = {
         "pattern": f"%{query}%",
@@ -334,6 +260,8 @@ async def _search_with_keywords(
     }
     if graph_id:
         params["graph_id"] = str(graph_id)
+    if target_types:
+        params["target_types"] = target_types
 
     result = await db.execute(sql, params)
     rows = result.fetchall()

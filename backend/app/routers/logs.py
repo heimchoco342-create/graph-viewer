@@ -7,13 +7,17 @@ from collections import deque
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.config import get_settings
+
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
+
+settings = get_settings()
 
 # ── In-memory log buffer + broadcast ────────────────────────
 
-MAX_BUFFER = 200  # keep last N lines for new connections
-
-_buffer: deque[str] = deque(maxlen=MAX_BUFFER)
+_buffer: deque[str] = deque(maxlen=settings.LOG_BUFFER_SIZE)
 _clients: set[WebSocket] = set()
 
 
@@ -28,13 +32,14 @@ class WebSocketLogHandler(logging.Handler):
             try:
                 asyncio.get_event_loop().create_task(_send(ws, msg))
             except RuntimeError:
-                pass  # no running loop yet
+                logger.debug("No running event loop, skipping WebSocket broadcast")
 
 
 async def _send(ws: WebSocket, msg: str) -> None:
     try:
         await ws.send_text(msg)
     except Exception:
+        logger.debug("WebSocket send failed, removing client")
         _clients.discard(ws)
 
 
