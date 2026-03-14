@@ -1,0 +1,1009 @@
+# ============================================================
+# Complex K8s Cluster: E-commerce Microservices Architecture
+# ============================================================
+# Namespace → 2 namespaces (prod, monitoring)
+# Deployments → ReplicaSets → Pods (ownerReferences chains)
+# Services → Pods (selector matching)
+# Ingress → Services (backend routing)
+# Pods → ConfigMaps, Secrets, PVCs (volume mounts)
+# Pods → Nodes (scheduling)
+# CronJob → Job → Pod (ownerReferences chain)
+# DaemonSet → Pods (ownerReferences)
+# StatefulSet → Pods (ownerReferences)
+# HPA → Deployments (scaling target)
+# ============================================================
+
+# --- Namespaces ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod
+  labels:
+    env: production
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    env: monitoring
+---
+# --- Cluster Nodes ---
+apiVersion: v1
+kind: Node
+metadata:
+  name: worker-node-1
+  namespace: default
+  labels:
+    kubernetes.io/hostname: worker-node-1
+    topology.kubernetes.io/zone: ap-northeast-2a
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: worker-node-2
+  namespace: default
+  labels:
+    kubernetes.io/hostname: worker-node-2
+    topology.kubernetes.io/zone: ap-northeast-2b
+---
+# --- ConfigMaps ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-config
+  namespace: prod
+data:
+  RATE_LIMIT: "1000"
+  LOG_LEVEL: "info"
+  CORS_ORIGINS: "https://shop.example.com"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-config
+  namespace: prod
+data:
+  POSTGRES_HOST: "postgresql-primary.prod.svc"
+  POSTGRES_PORT: "5432"
+  REDIS_HOST: "redis-master.prod.svc"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    scrape_configs:
+      - job_name: 'api-gateway'
+        static_configs:
+          - targets: ['api-gateway.prod.svc:8080']
+---
+# --- Secrets ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-credentials
+  namespace: prod
+type: Opaque
+data:
+  POSTGRES_PASSWORD: cGFzc3dvcmQxMjM=
+  REDIS_PASSWORD: cmVkaXNwYXNz
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jwt-secret
+  namespace: prod
+type: Opaque
+data:
+  JWT_SECRET: c3VwZXItc2VjcmV0LWtleQ==
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tls-cert
+  namespace: prod
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTi...
+  tls.key: LS0tLS1CRUdJTi...
+---
+# --- PersistentVolumeClaims ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data-pvc
+  namespace: prod
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data-pvc
+  namespace: prod
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-data-pvc
+  namespace: monitoring
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 100Gi
+---
+# --- Deployments (prod) ---
+# API Gateway Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: prod
+  labels:
+    app: api-gateway
+    tier: frontend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+        tier: frontend
+    spec:
+      containers:
+        - name: api-gateway
+          image: shop/api-gateway:v2.1
+          ports:
+            - containerPort: 8080
+---
+# User Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: prod
+  labels:
+    app: user-service
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+        tier: backend
+    spec:
+      containers:
+        - name: user-service
+          image: shop/user-service:v1.5
+---
+# Order Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: prod
+  labels:
+    app: order-service
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+        tier: backend
+    spec:
+      containers:
+        - name: order-service
+          image: shop/order-service:v3.0
+---
+# Payment Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: prod
+  labels:
+    app: payment-service
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        tier: backend
+    spec:
+      containers:
+        - name: payment-service
+          image: shop/payment-service:v1.2
+---
+# --- ReplicaSets (owned by Deployments) ---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: api-gateway-6f7b8c9d
+  namespace: prod
+  labels:
+    app: api-gateway
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: api-gateway
+      uid: deploy-api-gw-uid
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api-gateway
+      pod-template-hash: 6f7b8c9d
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: user-service-abc123
+  namespace: prod
+  labels:
+    app: user-service
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: user-service
+      uid: deploy-user-uid
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+      pod-template-hash: abc123
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: order-service-def456
+  namespace: prod
+  labels:
+    app: order-service
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: order-service
+      uid: deploy-order-uid
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-service
+      pod-template-hash: def456
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: payment-service-789ghi
+  namespace: prod
+  labels:
+    app: payment-service
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: payment-service
+      uid: deploy-payment-uid
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: payment-service
+      pod-template-hash: 789ghi
+---
+# --- Pods (owned by ReplicaSets, with volumes, scheduled on nodes) ---
+# API Gateway Pods (3 replicas, scheduled across 2 nodes)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: api-gateway-6f7b8c9d-x1a2b
+  namespace: prod
+  labels:
+    app: api-gateway
+    pod-template-hash: 6f7b8c9d
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: api-gateway-6f7b8c9d
+      uid: rs-api-gw-uid
+spec:
+  nodeName: worker-node-1
+  containers:
+    - name: api-gateway
+      image: shop/api-gateway:v2.1
+  volumes:
+    - name: config
+      configMap:
+        name: api-gateway-config
+    - name: jwt
+      secret:
+        secretName: jwt-secret
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: api-gateway-6f7b8c9d-y3c4d
+  namespace: prod
+  labels:
+    app: api-gateway
+    pod-template-hash: 6f7b8c9d
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: api-gateway-6f7b8c9d
+      uid: rs-api-gw-uid
+spec:
+  nodeName: worker-node-2
+  containers:
+    - name: api-gateway
+      image: shop/api-gateway:v2.1
+  volumes:
+    - name: config
+      configMap:
+        name: api-gateway-config
+    - name: jwt
+      secret:
+        secretName: jwt-secret
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: api-gateway-6f7b8c9d-z5e6f
+  namespace: prod
+  labels:
+    app: api-gateway
+    pod-template-hash: 6f7b8c9d
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: api-gateway-6f7b8c9d
+      uid: rs-api-gw-uid
+spec:
+  nodeName: worker-node-1
+  containers:
+    - name: api-gateway
+      image: shop/api-gateway:v2.1
+  volumes:
+    - name: config
+      configMap:
+        name: api-gateway-config
+    - name: jwt
+      secret:
+        secretName: jwt-secret
+---
+# User Service Pods (2 replicas, with DB config + credentials)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: user-service-abc123-p1q2r
+  namespace: prod
+  labels:
+    app: user-service
+    pod-template-hash: abc123
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: user-service-abc123
+      uid: rs-user-uid
+spec:
+  nodeName: worker-node-1
+  containers:
+    - name: user-service
+      image: shop/user-service:v1.5
+  volumes:
+    - name: db-config
+      configMap:
+        name: db-config
+    - name: db-creds
+      secret:
+        secretName: db-credentials
+    - name: jwt
+      secret:
+        secretName: jwt-secret
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: user-service-abc123-s3t4u
+  namespace: prod
+  labels:
+    app: user-service
+    pod-template-hash: abc123
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: user-service-abc123
+      uid: rs-user-uid
+spec:
+  nodeName: worker-node-2
+  containers:
+    - name: user-service
+      image: shop/user-service:v1.5
+  volumes:
+    - name: db-config
+      configMap:
+        name: db-config
+    - name: db-creds
+      secret:
+        secretName: db-credentials
+---
+# Order Service Pods (with DB + payment deps)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: order-service-def456-a7b8c
+  namespace: prod
+  labels:
+    app: order-service
+    pod-template-hash: def456
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: order-service-def456
+      uid: rs-order-uid
+spec:
+  nodeName: worker-node-1
+  containers:
+    - name: order-service
+      image: shop/order-service:v3.0
+  volumes:
+    - name: db-config
+      configMap:
+        name: db-config
+    - name: db-creds
+      secret:
+        secretName: db-credentials
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: order-service-def456-d9e0f
+  namespace: prod
+  labels:
+    app: order-service
+    pod-template-hash: def456
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: order-service-def456
+      uid: rs-order-uid
+spec:
+  nodeName: worker-node-2
+  containers:
+    - name: order-service
+      image: shop/order-service:v3.0
+  volumes:
+    - name: db-config
+      configMap:
+        name: db-config
+    - name: db-creds
+      secret:
+        secretName: db-credentials
+---
+# Payment Service Pods (with TLS secret)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: payment-service-789ghi-m1n2o
+  namespace: prod
+  labels:
+    app: payment-service
+    pod-template-hash: 789ghi
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: payment-service-789ghi
+      uid: rs-payment-uid
+spec:
+  nodeName: worker-node-2
+  containers:
+    - name: payment-service
+      image: shop/payment-service:v1.2
+  volumes:
+    - name: tls
+      secret:
+        secretName: tls-cert
+    - name: db-creds
+      secret:
+        secretName: db-credentials
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: payment-service-789ghi-p3q4r
+  namespace: prod
+  labels:
+    app: payment-service
+    pod-template-hash: 789ghi
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: payment-service-789ghi
+      uid: rs-payment-uid
+spec:
+  nodeName: worker-node-1
+  containers:
+    - name: payment-service
+      image: shop/payment-service:v1.2
+  volumes:
+    - name: tls
+      secret:
+        secretName: tls-cert
+    - name: db-creds
+      secret:
+        secretName: db-credentials
+---
+# --- Services ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: prod
+spec:
+  type: LoadBalancer
+  selector:
+    app: api-gateway
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: prod
+spec:
+  type: ClusterIP
+  selector:
+    app: user-service
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: prod
+spec:
+  type: ClusterIP
+  selector:
+    app: order-service
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: prod
+spec:
+  type: ClusterIP
+  selector:
+    app: payment-service
+  ports:
+    - port: 443
+      targetPort: 8443
+---
+# --- Ingress (routes to multiple services) ---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shop-ingress
+  namespace: prod
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+    - hosts: ["shop.example.com"]
+      secretName: tls-cert
+  rules:
+    - host: shop.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway
+                port:
+                  number: 80
+          - path: /api/users
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 8080
+          - path: /api/orders
+            pathType: Prefix
+            backend:
+              service:
+                name: order-service
+                port:
+                  number: 8080
+          - path: /api/payments
+            pathType: Prefix
+            backend:
+              service:
+                name: payment-service
+                port:
+                  number: 443
+---
+# --- StatefulSet (PostgreSQL) ---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgresql-primary
+  namespace: prod
+  labels:
+    app: postgresql
+    role: primary
+spec:
+  serviceName: postgresql-primary
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+      role: primary
+---
+# StatefulSet Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: postgresql-primary-0
+  namespace: prod
+  labels:
+    app: postgresql
+    role: primary
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: StatefulSet
+      name: postgresql-primary
+      uid: sts-pg-uid
+spec:
+  nodeName: worker-node-1
+  containers:
+    - name: postgresql
+      image: postgres:16
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: postgres-data-pvc
+    - name: db-creds
+      secret:
+        secretName: db-credentials
+---
+# StatefulSet Service (headless)
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-primary
+  namespace: prod
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: postgresql
+    role: primary
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# --- StatefulSet (Redis) ---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-master
+  namespace: prod
+  labels:
+    app: redis
+    role: master
+spec:
+  serviceName: redis-master
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+      role: master
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: redis-master-0
+  namespace: prod
+  labels:
+    app: redis
+    role: master
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: StatefulSet
+      name: redis-master
+      uid: sts-redis-uid
+spec:
+  nodeName: worker-node-2
+  containers:
+    - name: redis
+      image: redis:7-alpine
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: redis-data-pvc
+    - name: creds
+      secret:
+        secretName: db-credentials
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-master
+  namespace: prod
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: redis
+    role: master
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+# --- DaemonSet (log collector on every node) ---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: monitoring
+  labels:
+    app: fluentd
+spec:
+  selector:
+    matchLabels:
+      app: fluentd
+  template:
+    metadata:
+      labels:
+        app: fluentd
+    spec:
+      containers:
+        - name: fluentd
+          image: fluentd:v1.16
+---
+# DaemonSet Pods (one per node)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fluentd-node1
+  namespace: monitoring
+  labels:
+    app: fluentd
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: DaemonSet
+      name: fluentd
+      uid: ds-fluentd-uid
+spec:
+  nodeName: worker-node-1
+  containers:
+    - name: fluentd
+      image: fluentd:v1.16
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fluentd-node2
+  namespace: monitoring
+  labels:
+    app: fluentd
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: DaemonSet
+      name: fluentd
+      uid: ds-fluentd-uid
+spec:
+  nodeName: worker-node-2
+  containers:
+    - name: fluentd
+      image: fluentd:v1.16
+---
+# --- Prometheus Deployment (monitoring namespace) ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: prometheus-rs-abc
+  namespace: monitoring
+  labels:
+    app: prometheus
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: prometheus
+      uid: deploy-prom-uid
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: prometheus-rs-abc-pod1
+  namespace: monitoring
+  labels:
+    app: prometheus
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: ReplicaSet
+      name: prometheus-rs-abc
+      uid: rs-prom-uid
+spec:
+  nodeName: worker-node-1
+  containers:
+    - name: prometheus
+      image: prom/prometheus:v2.51.0
+  volumes:
+    - name: config
+      configMap:
+        name: prometheus-config
+    - name: data
+      persistentVolumeClaim:
+        claimName: prometheus-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  type: ClusterIP
+  selector:
+    app: prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090
+---
+# --- CronJob → Job → Pod chain ---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup
+  namespace: prod
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: backup
+              image: shop/db-backup:v1.0
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-backup-28450000
+  namespace: prod
+  labels:
+    job-name: db-backup-28450000
+  ownerReferences:
+    - apiVersion: batch/v1
+      kind: CronJob
+      name: db-backup
+      uid: cj-backup-uid
+spec:
+  template:
+    spec:
+      containers:
+        - name: backup
+          image: shop/db-backup:v1.0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: db-backup-28450000-abc12
+  namespace: prod
+  labels:
+    job-name: db-backup-28450000
+  ownerReferences:
+    - apiVersion: batch/v1
+      kind: Job
+      name: db-backup-28450000
+      uid: job-backup-uid
+spec:
+  nodeName: worker-node-2
+  containers:
+    - name: backup
+      image: shop/db-backup:v1.0
+  volumes:
+    - name: db-creds
+      secret:
+        secretName: db-credentials
+    - name: db-config
+      configMap:
+        name: db-config
+---
+# --- HPAs (auto-scaling) ---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-gateway-hpa
+  namespace: prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-gateway
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: order-service-hpa
+  namespace: prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: order-service
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
