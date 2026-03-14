@@ -99,10 +99,10 @@ describe('GraphPage', () => {
 });
 
 describe('applyDagreLayout', () => {
-  const makeNode = (id: string): Node => ({
+  const makeNode = (id: string, nodeType = 'default'): Node => ({
     id,
     position: { x: 0, y: 0 },
-    data: { label: id },
+    data: { label: id, nodeType },
     type: 'circle',
   });
 
@@ -149,20 +149,24 @@ describe('applyDagreLayout', () => {
     expect(result).toHaveLength(2);
   });
 
-  it('arranges orphan nodes in a grid pattern', () => {
-    const nodes = Array.from({ length: 8 }, (_, i) => makeNode(`o${i}`));
+  it('groups orphan nodes by type on separate rows', () => {
+    const nodes = [
+      makeNode('p1', 'person'), makeNode('p2', 'person'),
+      makeNode('t1', 'tech'), makeNode('t2', 'tech'), makeNode('t3', 'tech'),
+    ];
 
     const result = applyDagreLayout(nodes, []);
 
-    // First 6 should be on same row (y), 7th and 8th on next row
-    const row0 = result.slice(0, 6);
-    const row1 = result.slice(6);
+    const p1 = result.find((n) => n.id === 'p1')!;
+    const p2 = result.find((n) => n.id === 'p2')!;
+    const t1 = result.find((n) => n.id === 't1')!;
+    const t2 = result.find((n) => n.id === 't2')!;
 
-    // All in row 0 should share same y
-    const y0 = row0[0].position.y;
-    row0.forEach((n) => expect(n.position.y).toBe(y0));
+    // Same type should share same y (same row)
+    expect(p1.position.y).toBe(p2.position.y);
+    expect(t1.position.y).toBe(t2.position.y);
 
-    // Row 1 should be above row 0 (smaller y = higher up)
-    expect(row1[0].position.y).toBeLessThan(y0);
+    // Different types should be on different rows
+    expect(p1.position.y).not.toBe(t1.position.y);
   });
 });

@@ -62,23 +62,32 @@ export function applyDagreLayout(
     minY = Math.min(...layoutedConnected.map((n) => n.position.y));
   }
 
-  // Place orphan nodes in a grid in the top-left zone
-  const ORPHAN_COLS = 6;
+  // Group orphan nodes by type, then lay out each group in its own row
   const ORPHAN_GAP_X = 70;
-  const ORPHAN_GAP_Y = 70;
+  const ORPHAN_GAP_Y = 80;
   const ORPHAN_OFFSET_Y = minY - 150; // above the main graph
 
-  const layoutedOrphans = orphanNodes.map((node, i) => {
-    const col = i % ORPHAN_COLS;
-    const row = Math.floor(i / ORPHAN_COLS);
-    return {
-      ...node,
-      position: {
-        x: minX + col * ORPHAN_GAP_X,
-        y: ORPHAN_OFFSET_Y - row * ORPHAN_GAP_Y,
-      },
-    };
+  const orphansByType = new Map<string, Node[]>();
+  orphanNodes.forEach((node) => {
+    const nodeType = (node.data as Record<string, unknown>)?.nodeType as string ?? 'unknown';
+    if (!orphansByType.has(nodeType)) orphansByType.set(nodeType, []);
+    orphansByType.get(nodeType)!.push(node);
   });
+
+  const layoutedOrphans: Node[] = [];
+  let rowIndex = 0;
+  for (const [, group] of orphansByType) {
+    group.forEach((node, col) => {
+      layoutedOrphans.push({
+        ...node,
+        position: {
+          x: minX + col * ORPHAN_GAP_X,
+          y: ORPHAN_OFFSET_Y - rowIndex * ORPHAN_GAP_Y,
+        },
+      });
+    });
+    rowIndex++;
+  }
 
   return [...layoutedOrphans, ...layoutedConnected];
 }
@@ -87,7 +96,7 @@ function toFlowNodes(graphNodes: { id: string; name: string; type: string }[]): 
   return graphNodes.map((n) => ({
     id: n.id,
     position: { x: 0, y: 0 },
-    data: { label: shortLabel(n.name), color: NODE_TYPE_COLORS[n.type] ?? '#6b7280' },
+    data: { label: shortLabel(n.name), color: NODE_TYPE_COLORS[n.type] ?? '#6b7280', nodeType: n.type },
     type: 'circle',
   }));
 }
