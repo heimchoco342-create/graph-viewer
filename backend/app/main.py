@@ -6,7 +6,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.db import Base, engine
 from app.models import Node, Edge, User, Graph, Group, GroupMember, GraphPermission  # noqa: F401 — ensure models registered
-from app.routers import auth, graph, path, ingestion, k8s
 
 settings = get_settings()
 
@@ -25,12 +24,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.include_router(auth.router)
-app.include_router(graph.router)
-app.include_router(path.router)
-app.include_router(ingestion.router)
-app.include_router(k8s.router)
 
 
 @app.get("/health")
