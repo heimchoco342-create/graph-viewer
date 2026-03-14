@@ -49,9 +49,11 @@ export const ALL_NODE_TYPE_OPTIONS: NodeTypeOption[] = NODE_TYPE_GROUPS.flatMap(
 /** Color mapping by node type for graph visualization */
 export const NODE_TYPE_COLORS: Record<string, string> = {
   // Organization
+  organization: '#ec4899',
   person: '#3b82f6',
   team: '#8b5cf6',
   project: '#10b981',
+  task: '#f97316',
   tech: '#f59e0b',
   system: '#ef4444',
   document: '#6b7280',

@@ -55,11 +55,16 @@ export function Graph3DCanvas({
     [nodes, links],
   );
 
-  // Zoom to fit on data change
+  // Configure forces and zoom to fit on data change
   useEffect(() => {
+    const fg = fgRef.current;
+    if (fg) {
+      fg.d3Force('charge')?.strength(-30);
+      fg.d3Force('link')?.distance(30);
+    }
     const timer = setTimeout(() => {
-      fgRef.current?.zoomToFit(400, 50);
-    }, 500);
+      fgRef.current?.zoomToFit(600, 20);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [nodes.length, links.length]);
 
@@ -92,15 +97,15 @@ export function Graph3DCanvas({
       const color = NODE_TYPE_COLORS[n.type] ?? '#6b7280';
       const isActive = !focusedConnectedIds || focusedConnectedIds.has(n.id);
       const opacity = isActive ? 1 : 0.15;
-      const size = n.type === 'organization' ? 8 : n.type === 'team' ? 6 : 4;
+      const size = n.type === 'organization' ? 5 : n.type === 'team' ? 4 : 3;
 
       const group = new THREE.Group();
 
-      // Sphere
+      // Sphere — use MeshBasicMaterial (no lighting needed)
       const geometry = new THREE.SphereGeometry(size, 16, 16);
-      const material = new THREE.MeshLambertMaterial({
+      const material = new THREE.MeshBasicMaterial({
         color,
-        transparent: !isActive,
+        transparent: opacity < 1,
         opacity,
       });
       const sphere = new THREE.Mesh(geometry, material);
@@ -111,8 +116,7 @@ export function Graph3DCanvas({
       const ctx = canvas.getContext('2d')!;
       canvas.width = 256;
       canvas.height = 64;
-      ctx.fillStyle = 'transparent';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.font = 'bold 24px sans-serif';
       ctx.fillStyle = isActive ? '#ffffff' : 'rgba(255,255,255,0.3)';
       ctx.textAlign = 'center';
@@ -123,8 +127,8 @@ export function Graph3DCanvas({
       const texture = new THREE.CanvasTexture(canvas);
       const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
       const sprite = new THREE.Sprite(spriteMaterial);
-      sprite.scale.set(24, 6, 1);
-      sprite.position.set(0, size + 5, 0);
+      sprite.scale.set(20, 5, 1);
+      sprite.position.set(0, size + 3, 0);
       group.add(sprite);
 
       return group;
@@ -168,8 +172,7 @@ export function Graph3DCanvas({
         linkTarget="target"
         linkColor={linkColor}
         linkWidth={linkWidth}
-        linkDirectionalArrowLength={3}
-        linkDirectionalArrowRelPos={1}
+        linkOpacity={0.6}
         onNodeClick={handleNodeClick}
         onBackgroundClick={handleBackgroundClick}
         backgroundColor="#0f172a"

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { WngLogo } from './WngLogo'
 
 export interface SidebarMenuItem {
@@ -10,6 +10,7 @@ export interface SidebarMenuItem {
 export interface SidebarProps {
   menuItems?: SidebarMenuItem[]
   onMenuClick?: (label: string) => void
+  bottomSlot?: ReactNode
 }
 
 const defaultMenuItems: SidebarMenuItem[] = [
@@ -22,6 +23,7 @@ const defaultMenuItems: SidebarMenuItem[] = [
 export function Sidebar({
   menuItems = defaultMenuItems,
   onMenuClick,
+  bottomSlot,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
 
@@ -73,6 +75,11 @@ export function Sidebar({
           ))}
         </ul>
       </nav>
+      {bottomSlot && !collapsed && (
+        <div className="p-2 border-t border-border flex flex-col gap-1">
+          {bottomSlot}
+        </div>
+      )}
     </aside>
   )
 }

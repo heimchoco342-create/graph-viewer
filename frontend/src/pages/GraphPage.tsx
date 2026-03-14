@@ -1,10 +1,8 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { type Node, type Edge, useNodesState, useEdgesState } from '@xyflow/react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Sidebar } from '../components/layout/Sidebar';
-import { Header } from '../components/layout/Header';
 import { GraphCanvas } from '../components/graph/GraphCanvas';
-import { Graph3DCanvas, type Graph3DNode, type Graph3DLink } from '../components/graph/Graph3DCanvas';
 import { CircleNode } from '../components/graph/CircleNode';
 import { NodeDetail } from '../components/graph/NodeDetail';
 import { EdgeDetail } from '../components/graph/EdgeDetail';
@@ -119,12 +117,14 @@ export function GraphPage() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const {
+    graphs,
+    selectedGraphId,
     nodes: graphNodes,
     edges: graphEdges,
     selectedNode,
     selectedEdge,
-    fetchNodes,
-    fetchEdges,
+    fetchGraphs,
+    selectGraph,
     createNode,
     deleteNode,
     createEdge,
@@ -139,27 +139,19 @@ export function GraphPage() {
   const [showEdgeForm, setShowEdgeForm] = useState(false);
   const [layoutKey, setLayoutKey] = useState(0);
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const [focusMode, setFocusMode] = useState<'direct' | 'waterfall'>('direct');
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
+  const [drawerOpen, setDrawerOpen] = useState(true);
 
   useEffect(() => {
-    void fetchNodes();
-    void fetchEdges();
-  }, [fetchNodes, fetchEdges]);
+    void fetchGraphs();
+  }, [fetchGraphs]);
 
-  // Track container size for 3D canvas
+  // Auto-select first graph
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect;
-      setContainerSize({ width, height });
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+    if (graphs.length > 0 && !selectedGraphId) {
+      void selectGraph(graphs[0].id);
+    }
+  }, [graphs, selectedGraphId, selectGraph]);
 
   useEffect(() => {
     const nodes = toFlowNodes(graphNodes);
@@ -240,16 +232,6 @@ export function GraphPage() {
     });
   }, [flowEdges, connectedNodeIds]);
 
-  // 3D graph data
-  const graph3DNodes: Graph3DNode[] = useMemo(
-    () => graphNodes.map((n) => ({ id: n.id, name: shortLabel(n.name), type: n.type })),
-    [graphNodes],
-  );
-  const graph3DLinks: Graph3DLink[] = useMemo(
-    () => graphEdges.map((e) => ({ id: e.id, source: e.source_id, target: e.target_id, type: e.type })),
-    [graphEdges],
-  );
-
   const handleNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       setFocusedNodeId((prev) => (prev === node.id ? null : node.id));
@@ -265,15 +247,6 @@ export function GraphPage() {
       if (found) setSelectedEdge(found);
     },
     [graphEdges, setSelectedEdge],
-  );
-
-  const handle3DNodeClick = useCallback(
-    (node: Graph3DNode) => {
-      setFocusedNodeId((prev) => (prev === node.id ? null : node.id));
-      const found = graphNodes.find((n) => n.id === node.id);
-      if (found) setSelectedNode(found);
-    },
-    [graphNodes, setSelectedNode],
   );
 
   const handlePaneClick = useCallback(() => {
@@ -360,53 +333,61 @@ export function GraphPage() {
     if (route) navigate(route);
   };
 
+  const sidebarBottomSlot = (
+    <>
+      <div className="flex bg-bg-primary rounded-lg border border-border text-sm">
+        <button
+          onClick={() => setFocusMode('direct')}
+          className={`flex-1 px-3 py-1.5 rounded-l-lg transition-colors ${focusMode === 'direct' ? 'bg-blue-600 text-white' : 'text-text-secondary hover:text-text-primary'}`}
+          title="직접 연결된 노드만 하이라이트"
+        >
+          직접
+        </button>
+        <button
+          onClick={() => setFocusMode('waterfall')}
+          className={`flex-1 px-3 py-1.5 rounded-r-lg transition-colors ${focusMode === 'waterfall' ? 'bg-blue-600 text-white' : 'text-text-secondary hover:text-text-primary'}`}
+          title="상위/하위 트리 전체 하이라이트"
+        >
+          워터폴
+        </button>
+      </div>
+      <div className="flex gap-1">
+        <button
+          onClick={() => setShowNodeForm(true)}
+          className="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-500"
+        >
+          + 노드
+        </button>
+        <button
+          onClick={() => setShowEdgeForm(true)}
+          className="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-500"
+        >
+          + 엣지
+        </button>
+      </div>
+    </>
+  );
+
   return (
-    <AppLayout sidebar={<Sidebar menuItems={menuItems} onMenuClick={handleMenuClick} />}>
-      <header className="flex items-center justify-between px-4 py-2 border-b border-border bg-bg-secondary shrink-0 whitespace-nowrap">
-        <h2 className="text-base font-semibold text-text-primary">WNG</h2>
+    <AppLayout sidebar={<Sidebar menuItems={menuItems} onMenuClick={handleMenuClick} bottomSlot={sidebarBottomSlot} />}>
+      <header className="flex items-center justify-between px-4 py-2 border-b border-border bg-bg-secondary shrink-0">
         <div className="flex items-center gap-2">
-          <div className="flex bg-bg-primary rounded-lg border border-border text-sm">
-            <button
-              onClick={() => setViewMode('2d')}
-              className={`px-3 py-1.5 rounded-l-lg transition-colors ${viewMode === '2d' ? 'bg-blue-600 text-white' : 'text-text-secondary hover:text-text-primary'}`}
+          {graphs.length > 0 && (
+            <select
+              value={selectedGraphId ?? ''}
+              onChange={(e) => void selectGraph(e.target.value)}
+              className="bg-bg-primary text-text-primary text-sm border border-border rounded-lg px-3 py-1.5 focus:outline-none focus:border-accent"
             >
-              2D
-            </button>
-            <button
-              onClick={() => setViewMode('3d')}
-              className={`px-3 py-1.5 rounded-r-lg transition-colors ${viewMode === '3d' ? 'bg-blue-600 text-white' : 'text-text-secondary hover:text-text-primary'}`}
-            >
-              3D
-            </button>
-          </div>
-          <div className="flex bg-bg-primary rounded-lg border border-border text-sm">
-            <button
-              onClick={() => setFocusMode('direct')}
-              className={`px-3 py-1.5 rounded-l-lg transition-colors ${focusMode === 'direct' ? 'bg-blue-600 text-white' : 'text-text-secondary hover:text-text-primary'}`}
-              title="직접 연결된 노드만 하이라이트"
-            >
-              직접
-            </button>
-            <button
-              onClick={() => setFocusMode('waterfall')}
-              className={`px-3 py-1.5 rounded-r-lg transition-colors ${focusMode === 'waterfall' ? 'bg-blue-600 text-white' : 'text-text-secondary hover:text-text-primary'}`}
-              title="상위/하위 트리 전체 하이라이트"
-            >
-              워터폴
-            </button>
-          </div>
-          <button
-            onClick={() => setShowNodeForm(true)}
-            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-500"
-          >
-            + 노드
-          </button>
-          <button
-            onClick={() => setShowEdgeForm(true)}
-            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-500"
-          >
-            + 엣지
-          </button>
+              {graphs.map((g) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+          )}
+          {graphs.length === 0 && (
+            <span className="text-sm text-text-secondary">그래프 없음</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
           <span className="text-sm text-text-secondary">{user?.name}</span>
           <button
             onClick={logout}
@@ -417,77 +398,78 @@ export function GraphPage() {
         </div>
       </header>
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 relative" ref={containerRef}>
-          {viewMode === '2d' ? (
-            <GraphCanvas
-              key={layoutKey}
-              nodes={displayNodes}
-              edges={displayEdges}
-              nodeTypes={customNodeTypes}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onNodeClick={handleNodeClick}
-              onEdgeClick={handleEdgeClick}
-              onPaneClick={handlePaneClick}
-            />
-          ) : (
-            <Graph3DCanvas
-              nodes={graph3DNodes}
-              links={graph3DLinks}
-              width={containerSize.width}
-              height={containerSize.height}
-              onNodeClick={handle3DNodeClick}
-              onBackgroundClick={handlePaneClick}
-              focusedNodeId={focusedNodeId}
-            />
-          )}
+        <div className="flex-1 relative">
+          <GraphCanvas
+            key={layoutKey}
+            nodes={displayNodes}
+            edges={displayEdges}
+            nodeTypes={customNodeTypes}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onNodeClick={handleNodeClick}
+            onEdgeClick={handleEdgeClick}
+            onPaneClick={handlePaneClick}
+          />
         </div>
 
-        {(selectedNode || selectedEdge) && <div className="w-[280px] shrink-0 border-l border-border bg-bg-primary overflow-y-auto p-4 flex flex-col gap-4">
-          {selectedNode && (
-            <NodeDetail
-              id={selectedNode.id}
-              label={selectedNode.name}
-              type={selectedNode.type}
-              properties={selectedNode.properties as Record<string, string>}
-              onClose={() => setSelectedNode(null)}
-            />
-          )}
-          {selectedNode && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleDownloadSubgraph}
-                className="text-accent text-sm hover:underline"
-              >
-                서브그래프 다운로드
-              </button>
-              <button
-                onClick={() => void deleteNode(selectedNode.id)}
-                className="text-danger text-sm hover:underline"
-              >
-                노드 삭제
-              </button>
-            </div>
-          )}
-          {selectedEdge && (
-            <EdgeDetail
-              id={selectedEdge.id}
-              source={selectedEdge.source_id}
-              target={selectedEdge.target_id}
-              label={selectedEdge.type}
-              properties={selectedEdge.properties as Record<string, string>}
-              onClose={() => setSelectedEdge(null)}
-            />
-          )}
-          {selectedEdge && (
+        {(selectedNode || selectedEdge) && (
+          <div className="shrink-0 border-l border-border bg-bg-primary flex flex-col relative">
             <button
-              onClick={() => void deleteEdge(selectedEdge.id)}
-              className="text-danger text-sm hover:underline"
+              onClick={() => setDrawerOpen((v) => !v)}
+              className="absolute -left-6 top-3 w-6 h-8 bg-bg-secondary border border-border border-r-0 rounded-l-md flex items-center justify-center text-text-secondary hover:text-text-primary text-xs z-10"
+              title={drawerOpen ? '패널 접기' : '패널 펼치기'}
             >
-              엣지 삭제
+              {drawerOpen ? '▶' : '◀'}
             </button>
-          )}
-        </div>}
+            {drawerOpen && (
+              <div className="w-[280px] overflow-y-auto p-4 flex flex-col gap-4">
+                {selectedNode && (
+                  <NodeDetail
+                    id={selectedNode.id}
+                    label={selectedNode.name}
+                    type={selectedNode.type}
+                    properties={selectedNode.properties as Record<string, string>}
+                    onClose={() => setSelectedNode(null)}
+                  />
+                )}
+                {selectedNode && (
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleDownloadSubgraph}
+                      className="text-accent text-sm hover:underline"
+                    >
+                      서브그래프 다운로드
+                    </button>
+                    <button
+                      onClick={() => void deleteNode(selectedNode.id)}
+                      className="text-danger text-sm hover:underline"
+                    >
+                      노드 삭제
+                    </button>
+                  </div>
+                )}
+                {selectedEdge && (
+                  <EdgeDetail
+                    id={selectedEdge.id}
+                    source={selectedEdge.source_id}
+                    target={selectedEdge.target_id}
+                    label={selectedEdge.type}
+                    properties={selectedEdge.properties as Record<string, string>}
+                    onClose={() => setSelectedEdge(null)}
+                  />
+                )}
+                {selectedEdge && (
+                  <button
+                    onClick={() => void deleteEdge(selectedEdge.id)}
+                    className="text-danger text-sm hover:underline"
+                  >
+                    엣지 삭제
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <Modal isOpen={showNodeForm} title="노드 추가" onClose={() => setShowNodeForm(false)}>
