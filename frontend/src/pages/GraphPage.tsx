@@ -88,6 +88,7 @@ export function GraphPage() {
   const [showNodeForm, setShowNodeForm] = useState(false);
   const [showEdgeForm, setShowEdgeForm] = useState(false);
   const [layoutKey, setLayoutKey] = useState(0);
+  const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchNodes();
@@ -103,8 +104,50 @@ export function GraphPage() {
     setLayoutKey((k) => k + 1);
   }, [graphNodes, graphEdges, setFlowNodes, setFlowEdges]);
 
+  // Build set of connected node IDs for the focused node
+  const connectedNodeIds = useMemo(() => {
+    if (!focusedNodeId) return null;
+    const ids = new Set<string>([focusedNodeId]);
+    graphEdges.forEach((e) => {
+      if (e.source_id === focusedNodeId) ids.add(e.target_id);
+      if (e.target_id === focusedNodeId) ids.add(e.source_id);
+    });
+    return ids;
+  }, [focusedNodeId, graphEdges]);
+
+  // Apply dim/highlight styles based on focus
+  const displayNodes = useMemo(() => {
+    if (!connectedNodeIds) return flowNodes;
+    return flowNodes.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        dimmed: !connectedNodeIds.has(node.id),
+      },
+    }));
+  }, [flowNodes, connectedNodeIds]);
+
+  const displayEdges = useMemo(() => {
+    if (!connectedNodeIds) return flowEdges;
+    return flowEdges.map((edge) => {
+      const isConnected =
+        connectedNodeIds.has(edge.source) && connectedNodeIds.has(edge.target);
+      return {
+        ...edge,
+        style: {
+          ...edge.style,
+          stroke: isConnected ? '#60a5fa' : '#475569',
+          strokeWidth: isConnected ? 2 : 1,
+          opacity: isConnected ? 1 : 0.2,
+        },
+        animated: isConnected ? true : false,
+      };
+    });
+  }, [flowEdges, connectedNodeIds]);
+
   const handleNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
+      setFocusedNodeId((prev) => (prev === node.id ? null : node.id));
       const found = graphNodes.find((n) => n.id === node.id);
       if (found) setSelectedNode(found);
     },
@@ -118,6 +161,10 @@ export function GraphPage() {
     },
     [graphEdges, setSelectedEdge],
   );
+
+  const handlePaneClick = useCallback(() => {
+    setFocusedNodeId(null);
+  }, []);
 
   const handleNodeFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -186,13 +233,14 @@ export function GraphPage() {
         <div className="flex-1 relative">
           <GraphCanvas
             key={layoutKey}
-            nodes={flowNodes}
-            edges={flowEdges}
+            nodes={displayNodes}
+            edges={displayEdges}
             nodeTypes={customNodeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={handleNodeClick}
             onEdgeClick={handleEdgeClick}
+            onPaneClick={handlePaneClick}
           />
         </div>
 

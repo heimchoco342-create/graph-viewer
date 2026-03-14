@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { Sidebar } from './Sidebar'
 
 describe('Sidebar', () => {
@@ -18,7 +18,30 @@ describe('Sidebar', () => {
   it('calls onMenuClick when item is clicked', () => {
     const onMenuClick = vi.fn()
     render(<Sidebar onMenuClick={onMenuClick} />)
-    screen.getByText('검색').click()
+    fireEvent.click(screen.getByText('검색'))
     expect(onMenuClick).toHaveBeenCalledWith('검색')
+  })
+
+  it('collapses when toggle button is clicked', () => {
+    render(<Sidebar />)
+    fireEvent.click(screen.getByLabelText('메뉴 접기'))
+    expect(screen.queryByText('Knowledge Graph')).not.toBeInTheDocument()
+    expect(screen.queryByText('그래프')).not.toBeInTheDocument()
+    expect(screen.getByText('🔗')).toBeInTheDocument()
+  })
+
+  it('expands when toggle button is clicked again', () => {
+    render(<Sidebar />)
+    fireEvent.click(screen.getByLabelText('메뉴 접기'))
+    fireEvent.click(screen.getByLabelText('메뉴 펼치기'))
+    expect(screen.getByText('Knowledge Graph')).toBeInTheDocument()
+    expect(screen.getByText('그래프')).toBeInTheDocument()
+  })
+
+  it('shows tooltip on icons when collapsed', () => {
+    render(<Sidebar />)
+    fireEvent.click(screen.getByLabelText('메뉴 접기'))
+    const graphBtn = screen.getByText('🔗').closest('button')
+    expect(graphBtn).toHaveAttribute('title', '그래프')
   })
 })

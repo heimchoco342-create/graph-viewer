@@ -20,6 +20,7 @@ export interface GraphCanvasProps {
   onConnect?: OnConnect
   onNodeClick?: (event: React.MouseEvent, node: Node) => void
   onEdgeClick?: (event: React.MouseEvent, edge: Edge) => void
+  onPaneClick?: (event: React.MouseEvent) => void
 }
 
 export function GraphCanvas({
@@ -31,6 +32,7 @@ export function GraphCanvas({
   onConnect,
   onNodeClick,
   onEdgeClick,
+  onPaneClick,
 }: GraphCanvasProps) {
   return (
     <div className="flex-1 w-full h-full" data-testid="graph-canvas">
@@ -43,6 +45,7 @@ export function GraphCanvas({
         onConnect={onConnect}
         onNodeClick={onNodeClick}
         onEdgeClick={onEdgeClick}
+        onPaneClick={onPaneClick}
         fitView
         fitViewOptions={{ padding: 0.05 }}
         minZoom={0.1}

@@ -6,7 +6,7 @@ export interface NodeDetailProps {
   id: string
   label: string
   type: string
-  properties?: Record<string, string>
+  properties?: Record<string, unknown>
   onClose?: () => void
 }
 
@@ -39,7 +39,9 @@ export function NodeDetail({
             {Object.entries(properties).map(([key, val]) => (
               <div key={key} className="flex justify-between text-sm">
                 <span className="text-text-muted">{key}</span>
-                <span className="text-text-secondary">{val}</span>
+                <span className="text-text-secondary">
+                  {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+                </span>
               </div>
             ))}
           </div>

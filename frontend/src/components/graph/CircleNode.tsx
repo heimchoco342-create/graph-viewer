@@ -1,10 +1,13 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 
 export function CircleNode({ data }: NodeProps) {
-  const { label, color } = data as { label: string; color: string };
+  const { label, color, dimmed } = data as { label: string; color: string; dimmed?: boolean };
 
   return (
-    <div className="flex flex-col items-center" style={{ width: 60 }}>
+    <div
+      className="flex flex-col items-center transition-opacity duration-200"
+      style={{ width: 60, opacity: dimmed ? 0.35 : 1 }}
+    >
       <div
         title={label}
         style={{
