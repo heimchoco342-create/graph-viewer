@@ -54,7 +54,7 @@ describe('QueryPage', () => {
     expect(screen.getByText('엣지')).toBeInTheDocument();
     expect(screen.getByText('경로')).toBeInTheDocument();
     expect(screen.getByText('통계')).toBeInTheDocument();
-    expect(screen.getByText('그래프 탐색')).toBeInTheDocument();
+    expect(screen.getByText('재귀 탐색')).toBeInTheDocument();
   });
 
   it('renders query page with filter controls (nodes tab default)', () => {
@@ -190,13 +190,13 @@ describe('QueryPage', () => {
     expect(screen.getByText('경로 검색')).toBeInTheDocument();
   });
 
-  it('switches to bfs graph search tab', () => {
+  it('switches to recursive traverse tab', () => {
     render(
       <MemoryRouter>
         <QueryPage />
       </MemoryRouter>,
     );
-    fireEvent.click(screen.getByText('그래프 탐색'));
+    fireEvent.click(screen.getByText('재귀 탐색'));
 
     expect(screen.getByTestId('bfs-search-panel')).toBeInTheDocument();
   });

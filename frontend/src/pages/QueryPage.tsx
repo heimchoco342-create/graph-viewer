@@ -33,7 +33,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'edges', label: '엣지' },
   { key: 'path', label: '경로' },
   { key: 'stats', label: '통계' },
-  { key: 'bfs', label: '그래프 탐색' },
+  { key: 'bfs', label: '재귀 탐색' },
 ];
 
 export function QueryPage() {
