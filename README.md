@@ -10,7 +10,7 @@ Frontend (React + Vite + TypeScript)
   ├── Search (keyword + vector similarity)
   ├── BFS/Dijkstra Path Finder
   ├── Node/Edge CRUD
-  ├── File Upload (OpenRAG ingestion)
+  ├── File Upload
   └── Real-time Log Viewer (WebSocket)
         │ REST API + WebSocket (Vite proxy → :8000)
 Backend (FastAPI + Python)
@@ -19,7 +19,7 @@ Backend (FastAPI + Python)
   ├── Search Service (pgvector + Recursive CTE)
   ├── Embedding Service (Qwen3-Embedding-0.6B, 1024D)
   ├── K8s Connector (YAML → auto nodes + edges)
-  ├── Ingestion Service (OpenRAG)
+  ├── Ingestion Service (파일 업로드)
   └── MCP Server (JSON-RPC 2.0 over stdio)
         │
   PostgreSQL + pgvector
@@ -33,7 +33,7 @@ Backend (FastAPI + Python)
 | Backend | FastAPI, SQLAlchemy 2.0 (async), PostgreSQL + pgvector |
 | Embedding | Qwen3-Embedding-0.6B (sentence-transformers, 1024-dim) |
 | Auth | JWT (python-jose + passlib/bcrypt) |
-| Ingestion | OpenRAG (Docling parsing + LLM entity extraction) |
+| Ingestion | 파일 업로드 + 엔티티 추출 |
 | K8s | YAML manifest parser (15 resource types, 7 relationship types) |
 | MCP | JSON-RPC 2.0 stdio (6 tools: read/create/update/delete memory + link) |
 
