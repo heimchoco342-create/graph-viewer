@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Seed large-scale test data via REST API.
 
-2 organizations, 4 teams (1 leader + 4 members each = 20 people),
-90 days of work tasks (~80 tasks).
+1 organization (알파테크), 2 teams (개발팀 + 재무팀),
+1 leader + 4 members per team = 10 people,
+10 tasks per week (5 working days), 90 days = ~18 weeks = ~180 tasks.
 
 Node hierarchy:
-  조직 → 조직업무
-  팀 → 팀업무 / 팀장 / 팀원 → 개인업무
+  조직 → 프로젝트 (조직업무)
+  팀 → 팀장 / 팀원
+  팀원 → 작업 (개인업무)
+  작업 → 프로젝트
 
 Usage:
     cd backend && .venv/bin/python scripts/seed_large.py
@@ -42,71 +45,56 @@ def get_token() -> str:
 
 ORGS = [
     {"key": "org_alpha", "name": "알파테크", "props": {"industry": "SaaS", "size": "50명"}},
-    {"key": "org_beta", "name": "베타소프트", "props": {"industry": "핀테크", "size": "40명"}},
 ]
 
 TEAMS = [
-    # org_alpha teams
-    {"key": "alpha_backend", "org": "org_alpha", "name": "알파 백엔드팀"},
-    {"key": "alpha_frontend", "org": "org_alpha", "name": "알파 프론트엔드팀"},
-    # org_beta teams
-    {"key": "beta_platform", "org": "org_beta", "name": "베타 플랫폼팀"},
-    {"key": "beta_mobile", "org": "org_beta", "name": "베타 모바일팀"},
+    {"key": "dev_team", "org": "org_alpha", "name": "개발팀"},
+    {"key": "finance_team", "org": "org_alpha", "name": "재무팀"},
 ]
 
-# Each team: 1 leader + 4 members = 5 people, 4 teams = 20 people
+# Each team: 1 leader + 4 members = 5 people, 2 teams = 10 people
 PEOPLE = [
-    # alpha_backend
-    {"key": "ab_lead", "team": "alpha_backend", "name": "김태호", "role": "팀장", "is_leader": True},
-    {"key": "ab_m1", "team": "alpha_backend", "name": "이수진", "role": "시니어 백엔드"},
-    {"key": "ab_m2", "team": "alpha_backend", "name": "박준영", "role": "백엔드 개발자"},
-    {"key": "ab_m3", "team": "alpha_backend", "name": "정하은", "role": "백엔드 개발자"},
-    {"key": "ab_m4", "team": "alpha_backend", "name": "최민재", "role": "주니어 백엔드"},
-    # alpha_frontend
-    {"key": "af_lead", "team": "alpha_frontend", "name": "한소희", "role": "팀장", "is_leader": True},
-    {"key": "af_m1", "team": "alpha_frontend", "name": "윤지우", "role": "시니어 프론트엔드"},
-    {"key": "af_m2", "team": "alpha_frontend", "name": "장서연", "role": "프론트엔드 개발자"},
-    {"key": "af_m3", "team": "alpha_frontend", "name": "오민서", "role": "프론트엔드 개발자"},
-    {"key": "af_m4", "team": "alpha_frontend", "name": "배현우", "role": "주니어 프론트엔드"},
-    # beta_platform
-    {"key": "bp_lead", "team": "beta_platform", "name": "송영진", "role": "팀장", "is_leader": True},
-    {"key": "bp_m1", "team": "beta_platform", "name": "임채원", "role": "시니어 플랫폼"},
-    {"key": "bp_m2", "team": "beta_platform", "name": "권도현", "role": "플랫폼 개발자"},
-    {"key": "bp_m3", "team": "beta_platform", "name": "조은비", "role": "플랫폼 개발자"},
-    {"key": "bp_m4", "team": "beta_platform", "name": "황지훈", "role": "주니어 플랫폼"},
-    # beta_mobile
-    {"key": "bm_lead", "team": "beta_mobile", "name": "류다은", "role": "팀장", "is_leader": True},
-    {"key": "bm_m1", "team": "beta_mobile", "name": "남현수", "role": "시니어 모바일"},
-    {"key": "bm_m2", "team": "beta_mobile", "name": "문서윤", "role": "iOS 개발자"},
-    {"key": "bm_m3", "team": "beta_mobile", "name": "신예진", "role": "Android 개발자"},
-    {"key": "bm_m4", "team": "beta_mobile", "name": "강민호", "role": "주니어 모바일"},
+    # 개발팀
+    {"key": "dev_lead", "team": "dev_team", "name": "김태호", "role": "개발팀장", "is_leader": True},
+    {"key": "dev_m1", "team": "dev_team", "name": "이수진", "role": "시니어 백엔드"},
+    {"key": "dev_m2", "team": "dev_team", "name": "박준영", "role": "프론트엔드 개발자"},
+    {"key": "dev_m3", "team": "dev_team", "name": "정하은", "role": "풀스택 개발자"},
+    {"key": "dev_m4", "team": "dev_team", "name": "최민재", "role": "주니어 개발자"},
+    # 재무팀
+    {"key": "fin_lead", "team": "finance_team", "name": "한소희", "role": "재무팀장", "is_leader": True},
+    {"key": "fin_m1", "team": "finance_team", "name": "윤지우", "role": "시니어 회계사"},
+    {"key": "fin_m2", "team": "finance_team", "name": "장서연", "role": "세무 담당"},
+    {"key": "fin_m3", "team": "finance_team", "name": "오민서", "role": "예산 분석가"},
+    {"key": "fin_m4", "team": "finance_team", "name": "배현우", "role": "주니어 회계"},
 ]
 
 PROJECTS = [
-    {"key": "proj_saas", "org": "org_alpha", "name": "SaaS 플랫폼 v3", "props": {"status": "진행중", "priority": "high"}},
+    # 개발팀 프로젝트
+    {"key": "proj_platform", "org": "org_alpha", "name": "SaaS 플랫폼 v3", "props": {"status": "진행중", "priority": "high"}},
     {"key": "proj_admin", "org": "org_alpha", "name": "어드민 대시보드", "props": {"status": "진행중", "priority": "medium"}},
-    {"key": "proj_payment", "org": "org_beta", "name": "결제 시스템 리뉴얼", "props": {"status": "진행중", "priority": "high"}},
-    {"key": "proj_app", "org": "org_beta", "name": "모바일 앱 v2", "props": {"status": "진행중", "priority": "high"}},
+    # 재무팀 프로젝트
+    {"key": "proj_settlement", "org": "org_alpha", "name": "정산 시스템 개선", "props": {"status": "진행중", "priority": "high"}},
+    {"key": "proj_audit", "org": "org_alpha", "name": "Q1 감사 준비", "props": {"status": "진행중", "priority": "medium"}},
 ]
 
 TECH_STACK = [
+    # 개발 도구
     {"key": "t_fastapi", "name": "FastAPI", "props": {"category": "framework"}},
     {"key": "t_react", "name": "React", "props": {"category": "framework"}},
-    {"key": "t_rn", "name": "React Native", "props": {"category": "framework"}},
     {"key": "t_pg", "name": "PostgreSQL", "props": {"category": "database"}},
     {"key": "t_redis", "name": "Redis", "props": {"category": "database"}},
     {"key": "t_k8s", "name": "Kubernetes", "props": {"category": "infra"}},
     {"key": "t_docker", "name": "Docker", "props": {"category": "infra"}},
     {"key": "t_ts", "name": "TypeScript", "props": {"category": "language"}},
     {"key": "t_python", "name": "Python", "props": {"category": "language"}},
-    {"key": "t_kotlin", "name": "Kotlin", "props": {"category": "language"}},
-    {"key": "t_swift", "name": "Swift", "props": {"category": "language"}},
-    {"key": "t_kafka", "name": "Kafka", "props": {"category": "messaging"}},
-    {"key": "t_graphql", "name": "GraphQL", "props": {"category": "api"}},
+    # 재무 도구
+    {"key": "t_excel", "name": "Excel", "props": {"category": "tool"}},
+    {"key": "t_sap", "name": "SAP", "props": {"category": "erp"}},
+    {"key": "t_tableau", "name": "Tableau", "props": {"category": "analytics"}},
 ]
 
-# Task templates per category
-TASK_TEMPLATES = {
+# ── 개발팀 작업 템플릿 ──
+DEV_TASK_TEMPLATES = {
     "기능추가": [
         "{proj} 사용자 프로필 편집 기능",
         "{proj} 알림 설정 페이지 구현",
@@ -124,7 +112,7 @@ TASK_TEMPLATES = {
         "{proj} 페이지네이션 오프셋 버그",
         "{proj} 한글 인코딩 깨짐 수정",
         "{proj} 동시 요청 시 데이터 충돌",
-        "{proj} 모바일 레이아웃 깨짐 수정",
+        "{proj} 배포 후 캐시 무효화 누락 수정",
     ],
     "리팩토링": [
         "{proj} API 응답 포맷 통일",
@@ -140,67 +128,135 @@ TASK_TEMPLATES = {
         "{proj} 스테이징 환경 구성",
         "{proj} DB 마이그레이션 자동화",
     ],
-    "설계": [
-        "{proj} API 스펙 설계 (OpenAPI)",
-        "{proj} DB 스키마 설계 검토",
-        "{proj} 아키텍처 의사결정 문서",
+}
+
+# ── 재무팀 작업 템플릿 ──
+FIN_TASK_TEMPLATES = {
+    "정산": [
+        "{proj} 월간 매출 정산 처리",
+        "{proj} 파트너사 수수료 정산",
+        "{proj} 환불 내역 정리 및 대사",
+        "{proj} 결제 수수료 재계산",
+        "{proj} 정산 리포트 생성 자동화",
+    ],
+    "세무": [
+        "{proj} 부가세 신고 자료 준비",
+        "{proj} 세금계산서 발행 오류 점검",
+        "{proj} 원천징수 내역 검토",
+        "{proj} 법인세 중간예납 준비",
+        "{proj} 해외 거래 세무 처리",
+    ],
+    "감사": [
+        "{proj} 내부 통제 점검 체크리스트 작성",
+        "{proj} 외부 감사 자료 준비",
+        "{proj} 전기 감사 지적사항 후속 조치",
+        "{proj} 매출채권 연령 분석",
+        "{proj} 재고자산 실사 준비",
+    ],
+    "예산": [
+        "{proj} 부서별 예산 집행 현황 분석",
+        "{proj} Q2 예산안 초안 작성",
+        "{proj} 비용 절감 방안 보고서",
+        "{proj} 투자 수익률(ROI) 분석",
+        "{proj} 인건비 예산 대비 실적 비교",
+    ],
+    "보고": [
+        "{proj} 주간 재무 현황 보고서",
+        "{proj} 월간 손익 분석 보고",
+        "{proj} 현금 흐름 예측 갱신",
     ],
 }
 
 SUMMARIES = {
+    # 개발
     "기능추가": "신규 기능 구현 완료, 코드 리뷰 통과",
     "버그수정": "원인 분석 및 수정, 재현 테스트 통과",
     "리팩토링": "코드 정리 및 성능 개선, 기존 테스트 통과 확인",
     "인프라": "인프라 설정 완료, 팀 내 공유",
-    "설계": "설계 문서 작성 완료, 팀 리뷰 진행",
+    # 재무
+    "정산": "정산 처리 완료, 금액 대사 확인",
+    "세무": "세무 자료 준비 완료, 세무사 검토 요청",
+    "감사": "감사 자료 정리 완료, 경영진 보고",
+    "예산": "예산 분석 완료, 관련 부서 회람",
+    "보고": "보고서 작성 완료, 경영진 제출",
 }
 
 
-def generate_tasks(start_date: date, days: int = 90, count: int = 80):
-    """Generate task data distributed over the date range."""
+def generate_tasks(start_date: date, days: int = 90, tasks_per_week: int = 10):
+    """Generate tasks: tasks_per_week tasks for each working week in the period.
+
+    90 days ≈ 18 weeks → ~180 tasks, distributed on weekdays (Mon-Fri).
+    Each task is assigned round-robin to team members (not leaders).
+    """
     tasks = []
     members = [p for p in PEOPLE if not p.get("is_leader")]
     team_to_proj = {
-        "alpha_backend": "proj_saas",
-        "alpha_frontend": "proj_admin",
-        "beta_platform": "proj_payment",
-        "beta_mobile": "proj_app",
+        "dev_team": ["proj_platform", "proj_admin"],
+        "finance_team": ["proj_settlement", "proj_audit"],
+    }
+    team_templates = {
+        "dev_team": DEV_TASK_TEMPLATES,
+        "finance_team": FIN_TASK_TEMPLATES,
     }
     proj_names = {p["key"]: p["name"] for p in PROJECTS}
-    categories = list(TASK_TEMPLATES.keys())
+    end_date = start_date + timedelta(days=days)
+    member_idx = 0
+    task_idx = 0
 
-    for i in range(count):
-        person = members[i % len(members)]
-        team_key = person["team"]
-        proj_key = team_to_proj[team_key]
-        proj_name = proj_names[proj_key]
-        category = random.choice(categories)
-        templates = TASK_TEMPLATES[category]
-        template = templates[i % len(templates)]
-        task_name = template.format(proj=proj_name)
+    # Iterate week by week
+    current = start_date
+    while current < end_date:
+        # Collect working days (Mon=0 .. Fri=4) for this week
+        week_days = []
+        for d in range(7):
+            day = current + timedelta(days=d)
+            if day >= end_date:
+                break
+            if day.weekday() < 5:  # Mon-Fri
+                week_days.append(day)
+        if not week_days:
+            break
 
-        task_date = start_date + timedelta(days=random.randint(0, days - 1))
-        # Older tasks are more likely completed
-        days_ago = (start_date + timedelta(days=days) - task_date).days
-        if days_ago > 30:
-            status = "completed"
-        elif days_ago > 7:
-            status = random.choice(["completed", "completed", "in_progress"])
-        else:
-            status = random.choice(["in_progress", "in_progress", "todo"])
+        # Generate tasks_per_week tasks for this week
+        for j in range(tasks_per_week):
+            person = members[member_idx % len(members)]
+            member_idx += 1
+            team_key = person["team"]
+            proj_key = random.choice(team_to_proj[team_key])
+            proj_name = proj_names[proj_key]
+            cat_templates = team_templates[team_key]
+            categories = list(cat_templates.keys())
+            category = random.choice(categories)
+            cat_list = cat_templates[category]
+            template = cat_list[task_idx % len(cat_list)]
+            task_name = template.format(proj=proj_name)
 
-        tasks.append({
-            "key": f"task_{i+1:03d}",
-            "name": task_name,
-            "person": person["key"],
-            "team": team_key,
-            "project": proj_key,
-            "category": category,
-            "date": task_date.isoformat(),
-            "status": status,
-            "assignee": person["name"],
-            "summary": SUMMARIES[category],
-        })
+            task_date = random.choice(week_days)
+
+            # Status based on how old the task is
+            days_ago = (end_date - task_date).days
+            if days_ago > 30:
+                status = "completed"
+            elif days_ago > 7:
+                status = random.choice(["completed", "completed", "in_progress"])
+            else:
+                status = random.choice(["in_progress", "in_progress", "todo"])
+
+            task_idx += 1
+            tasks.append({
+                "key": f"task_{task_idx:03d}",
+                "name": task_name,
+                "person": person["key"],
+                "team": team_key,
+                "project": proj_key,
+                "category": category,
+                "date": task_date.isoformat(),
+                "status": status,
+                "assignee": person["name"],
+                "summary": SUMMARIES[category],
+            })
+
+        current += timedelta(days=7)
 
     return tasks
 
@@ -250,7 +306,7 @@ def main():
 
     # ── 작업 ──
     start = date(2025, 12, 15)
-    tasks = generate_tasks(start, days=90, count=80)
+    tasks = generate_tasks(start, days=90, tasks_per_week=10)
     for t in tasks:
         node(t["key"], "task", t["name"], {
             "team": t["team"], "assignee": t["assignee"],
@@ -271,22 +327,20 @@ def main():
 
     # ── 관계: 사람 → 프로젝트 (팀장은 manages, 팀원은 works_on) ──
     team_to_proj = {
-        "alpha_backend": "proj_saas",
-        "alpha_frontend": "proj_admin",
-        "beta_platform": "proj_payment",
-        "beta_mobile": "proj_app",
+        "dev_team": ["proj_platform", "proj_admin"],
+        "finance_team": ["proj_settlement", "proj_audit"],
     }
     for person in PEOPLE:
-        proj_key = team_to_proj[person["team"]]
         etype = "manages" if person.get("is_leader") else "works_on"
-        edge(person["key"], proj_key, etype)
+        for proj_key in team_to_proj[person["team"]]:
+            edge(person["key"], proj_key, etype)
 
     # ── 관계: 프로젝트 → 기술스택 ──
     proj_tech = {
-        "proj_saas": ["t_fastapi", "t_python", "t_pg", "t_redis", "t_k8s", "t_docker", "t_kafka"],
-        "proj_admin": ["t_react", "t_ts", "t_graphql"],
-        "proj_payment": ["t_fastapi", "t_python", "t_pg", "t_redis", "t_kafka"],
-        "proj_app": ["t_rn", "t_ts", "t_kotlin", "t_swift"],
+        "proj_platform": ["t_fastapi", "t_python", "t_pg", "t_redis", "t_k8s", "t_docker"],
+        "proj_admin": ["t_react", "t_ts", "t_python"],
+        "proj_settlement": ["t_sap", "t_excel", "t_pg", "t_python"],
+        "proj_audit": ["t_excel", "t_tableau", "t_sap"],
     }
     for proj_key, techs in proj_tech.items():
         for tech_key in techs:
