@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { type Node, type Edge, useNodesState, useEdgesState } from '@xyflow/react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
 import { GraphCanvas } from '../components/graph/GraphCanvas';
+import { Graph3DCanvas, type Graph3DNode, type Graph3DLink } from '../components/graph/Graph3DCanvas';
 import { CircleNode } from '../components/graph/CircleNode';
 import { NodeDetail } from '../components/graph/NodeDetail';
 import { EdgeDetail } from '../components/graph/EdgeDetail';
@@ -42,7 +43,7 @@ export function applyDagreLayout(
 
   // Layout connected nodes with Dagre
   const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: direction, nodesep: 30, ranksep: 60 });
+  g.setGraph({ rankdir: direction, nodesep: 80, ranksep: 120, edgesep: 30 });
 
   connectedNodes.forEach((node) => g.setNode(node.id, { width: 44, height: 44 }));
   edges.forEach((edge) => g.setEdge(edge.source, edge.target));
@@ -108,6 +109,7 @@ function toFlowEdges(graphEdges: { id: string; source_id: string; target_id: str
     target: e.target_id,
     style: { stroke: '#475569', strokeWidth: 1 },
     animated: e.type === 'owns',
+    markerEnd: { type: 'arrowclosed' as const, color: '#475569', width: 12, height: 12 },
   }));
 }
 
@@ -137,11 +139,27 @@ export function GraphPage() {
   const [showEdgeForm, setShowEdgeForm] = useState(false);
   const [layoutKey, setLayoutKey] = useState(0);
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
+  const [focusMode, setFocusMode] = useState<'direct' | 'waterfall'>('direct');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
 
   useEffect(() => {
     void fetchNodes();
     void fetchEdges();
   }, [fetchNodes, fetchEdges]);
+
+  // Track container size for 3D canvas
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      setContainerSize({ width, height });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const nodes = toFlowNodes(graphNodes);
@@ -156,12 +174,41 @@ export function GraphPage() {
   const connectedNodeIds = useMemo(() => {
     if (!focusedNodeId) return null;
     const ids = new Set<string>([focusedNodeId]);
-    graphEdges.forEach((e) => {
-      if (e.source_id === focusedNodeId) ids.add(e.target_id);
-      if (e.target_id === focusedNodeId) ids.add(e.source_id);
-    });
+
+    if (focusMode === 'direct') {
+      // 1-hop: direct neighbors only
+      graphEdges.forEach((e) => {
+        if (e.source_id === focusedNodeId) ids.add(e.target_id);
+        if (e.target_id === focusedNodeId) ids.add(e.source_id);
+      });
+    } else {
+      // Waterfall: BFS downstream (source→target direction) + upstream parents
+      // Upstream: follow target→source direction to find ancestors
+      const upQueue = [focusedNodeId];
+      while (upQueue.length > 0) {
+        const current = upQueue.shift()!;
+        graphEdges.forEach((e) => {
+          if (e.target_id === current && !ids.has(e.source_id)) {
+            ids.add(e.source_id);
+            upQueue.push(e.source_id);
+          }
+        });
+      }
+      // Downstream: follow source→target direction to find descendants
+      const downQueue = [focusedNodeId];
+      while (downQueue.length > 0) {
+        const current = downQueue.shift()!;
+        graphEdges.forEach((e) => {
+          if (e.source_id === current && !ids.has(e.target_id)) {
+            ids.add(e.target_id);
+            downQueue.push(e.target_id);
+          }
+        });
+      }
+    }
+
     return ids;
-  }, [focusedNodeId, graphEdges]);
+  }, [focusedNodeId, focusMode, graphEdges]);
 
   // Apply dim/highlight styles based on focus
   const displayNodes = useMemo(() => {
@@ -193,6 +240,16 @@ export function GraphPage() {
     });
   }, [flowEdges, connectedNodeIds]);
 
+  // 3D graph data
+  const graph3DNodes: Graph3DNode[] = useMemo(
+    () => graphNodes.map((n) => ({ id: n.id, name: shortLabel(n.name), type: n.type })),
+    [graphNodes],
+  );
+  const graph3DLinks: Graph3DLink[] = useMemo(
+    () => graphEdges.map((e) => ({ id: e.id, source: e.source_id, target: e.target_id, type: e.type })),
+    [graphEdges],
+  );
+
   const handleNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       setFocusedNodeId((prev) => (prev === node.id ? null : node.id));
@@ -208,6 +265,15 @@ export function GraphPage() {
       if (found) setSelectedEdge(found);
     },
     [graphEdges, setSelectedEdge],
+  );
+
+  const handle3DNodeClick = useCallback(
+    (node: Graph3DNode) => {
+      setFocusedNodeId((prev) => (prev === node.id ? null : node.id));
+      const found = graphNodes.find((n) => n.id === node.id);
+      if (found) setSelectedNode(found);
+    },
+    [graphNodes, setSelectedNode],
   );
 
   const handlePaneClick = useCallback(() => {
@@ -299,6 +365,36 @@ export function GraphPage() {
       <header className="flex items-center justify-between px-4 py-2 border-b border-border bg-bg-secondary shrink-0 whitespace-nowrap">
         <h2 className="text-base font-semibold text-text-primary">WNG</h2>
         <div className="flex items-center gap-2">
+          <div className="flex bg-bg-primary rounded-lg border border-border text-sm">
+            <button
+              onClick={() => setViewMode('2d')}
+              className={`px-3 py-1.5 rounded-l-lg transition-colors ${viewMode === '2d' ? 'bg-blue-600 text-white' : 'text-text-secondary hover:text-text-primary'}`}
+            >
+              2D
+            </button>
+            <button
+              onClick={() => setViewMode('3d')}
+              className={`px-3 py-1.5 rounded-r-lg transition-colors ${viewMode === '3d' ? 'bg-blue-600 text-white' : 'text-text-secondary hover:text-text-primary'}`}
+            >
+              3D
+            </button>
+          </div>
+          <div className="flex bg-bg-primary rounded-lg border border-border text-sm">
+            <button
+              onClick={() => setFocusMode('direct')}
+              className={`px-3 py-1.5 rounded-l-lg transition-colors ${focusMode === 'direct' ? 'bg-blue-600 text-white' : 'text-text-secondary hover:text-text-primary'}`}
+              title="직접 연결된 노드만 하이라이트"
+            >
+              직접
+            </button>
+            <button
+              onClick={() => setFocusMode('waterfall')}
+              className={`px-3 py-1.5 rounded-r-lg transition-colors ${focusMode === 'waterfall' ? 'bg-blue-600 text-white' : 'text-text-secondary hover:text-text-primary'}`}
+              title="상위/하위 트리 전체 하이라이트"
+            >
+              워터폴
+            </button>
+          </div>
           <button
             onClick={() => setShowNodeForm(true)}
             className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-500"
@@ -321,18 +417,30 @@ export function GraphPage() {
         </div>
       </header>
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 relative">
-          <GraphCanvas
-            key={layoutKey}
-            nodes={displayNodes}
-            edges={displayEdges}
-            nodeTypes={customNodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onNodeClick={handleNodeClick}
-            onEdgeClick={handleEdgeClick}
-            onPaneClick={handlePaneClick}
-          />
+        <div className="flex-1 relative" ref={containerRef}>
+          {viewMode === '2d' ? (
+            <GraphCanvas
+              key={layoutKey}
+              nodes={displayNodes}
+              edges={displayEdges}
+              nodeTypes={customNodeTypes}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onNodeClick={handleNodeClick}
+              onEdgeClick={handleEdgeClick}
+              onPaneClick={handlePaneClick}
+            />
+          ) : (
+            <Graph3DCanvas
+              nodes={graph3DNodes}
+              links={graph3DLinks}
+              width={containerSize.width}
+              height={containerSize.height}
+              onNodeClick={handle3DNodeClick}
+              onBackgroundClick={handlePaneClick}
+              focusedNodeId={focusedNodeId}
+            />
+          )}
         </div>
 
         {(selectedNode || selectedEdge) && <div className="w-[280px] shrink-0 border-l border-border bg-bg-primary overflow-y-auto p-4 flex flex-col gap-4">

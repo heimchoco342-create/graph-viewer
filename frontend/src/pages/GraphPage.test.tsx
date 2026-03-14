@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { GraphPage, applyDagreLayout } from './GraphPage';
 import { useAuthStore } from '../store/authStore';
@@ -24,6 +24,13 @@ vi.mock('@xyflow/react', async () => {
     MiniMap: () => null,
   };
 });
+
+// Mock Graph3DCanvas
+vi.mock('../components/graph/Graph3DCanvas', () => ({
+  Graph3DCanvas: (props: { nodes: unknown[] }) => (
+    <div data-testid="graph-3d-canvas-mock" data-node-count={props.nodes?.length ?? 0} />
+  ),
+}));
 
 describe('GraphPage', () => {
   beforeEach(() => {
@@ -73,6 +80,54 @@ describe('GraphPage', () => {
     );
 
     expect(screen.getByText('TestNode')).toBeInTheDocument();
+  });
+
+  it('renders 2D/3D view toggle buttons', () => {
+    render(
+      <MemoryRouter>
+        <GraphPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('2D')).toBeInTheDocument();
+    expect(screen.getByText('3D')).toBeInTheDocument();
+  });
+
+  it('defaults to 2D view', () => {
+    render(
+      <MemoryRouter>
+        <GraphPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId('react-flow-mock')).toBeInTheDocument();
+    expect(screen.queryByTestId('graph-3d-canvas-mock')).not.toBeInTheDocument();
+  });
+
+  it('switches to 3D view on toggle click', () => {
+    render(
+      <MemoryRouter>
+        <GraphPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByText('3D'));
+    expect(screen.getByTestId('graph-3d-canvas-mock')).toBeInTheDocument();
+    expect(screen.queryByTestId('react-flow-mock')).not.toBeInTheDocument();
+  });
+
+  it('switches back to 2D view', () => {
+    render(
+      <MemoryRouter>
+        <GraphPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByText('3D'));
+    expect(screen.getByTestId('graph-3d-canvas-mock')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('2D'));
+    expect(screen.getByTestId('react-flow-mock')).toBeInTheDocument();
   });
 
   it('shows selected node detail', () => {
