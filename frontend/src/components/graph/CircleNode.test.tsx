@@ -28,11 +28,11 @@ describe('CircleNode', () => {
     expect(screen.getByText('TestNode')).toBeInTheDocument();
   });
 
-  it('applies the color as background', () => {
+  it('applies the color as background on the circle element', () => {
     const { container } = render(<CircleNode {...baseProps} />);
-    const node = container.firstChild as HTMLElement;
-    expect(node.style.borderRadius).toBe('50%');
-    expect(node.style.background).toBe('rgb(59, 130, 246)');
+    const circle = container.querySelector('[title="TestNode"]') as HTMLElement;
+    expect(circle.style.borderRadius).toBe('50%');
+    expect(circle.style.background).toBe('rgb(59, 130, 246)');
   });
 
   it('uses fallback color when color is not provided', () => {
@@ -41,7 +41,13 @@ describe('CircleNode', () => {
       data: { label: 'NoColor' },
     };
     const { container } = render(<CircleNode {...props} />);
-    const node = container.firstChild as HTMLElement;
-    expect(node.style.background).toBe('rgb(107, 114, 128)');
+    const circle = container.querySelector('[title="NoColor"]') as HTMLElement;
+    expect(circle.style.background).toBe('rgb(107, 114, 128)');
+  });
+
+  it('shows label as tooltip on the circle', () => {
+    const { container } = render(<CircleNode {...baseProps} />);
+    const circle = container.querySelector('[title="TestNode"]');
+    expect(circle).toBeTruthy();
   });
 });

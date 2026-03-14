@@ -15,13 +15,40 @@ import { useAuthStore } from '../store/authStore';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { NODE_TYPE_COLORS } from '../constants/nodeTypes';
 
+import Dagre from '@dagrejs/dagre';
+
 const customNodeTypes = { circle: CircleNode };
 
+/** Extract short display name: "prod/Deployment/api-gateway" → "api-gateway" */
+function shortLabel(name: string): string {
+  const parts = name.split('/');
+  return parts[parts.length - 1];
+}
+
+function applyDagreLayout(
+  nodes: Node[],
+  edges: Edge[],
+  direction: 'TB' | 'LR' = 'TB',
+): Node[] {
+  const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+  g.setGraph({ rankdir: direction, nodesep: 30, ranksep: 60 });
+
+  nodes.forEach((node) => g.setNode(node.id, { width: 44, height: 44 }));
+  edges.forEach((edge) => g.setEdge(edge.source, edge.target));
+
+  Dagre.layout(g);
+
+  return nodes.map((node) => {
+    const pos = g.node(node.id);
+    return { ...node, position: { x: pos.x - 22, y: pos.y - 22 } };
+  });
+}
+
 function toFlowNodes(graphNodes: { id: string; name: string; type: string }[]): Node[] {
-  return graphNodes.map((n, i) => ({
+  return graphNodes.map((n) => ({
     id: n.id,
-    position: { x: (i % 5) * 200, y: Math.floor(i / 5) * 150 },
-    data: { label: n.name, color: NODE_TYPE_COLORS[n.type] ?? '#6b7280' },
+    position: { x: 0, y: 0 },
+    data: { label: shortLabel(n.name), color: NODE_TYPE_COLORS[n.type] ?? '#6b7280' },
     type: 'circle',
   }));
 }
@@ -31,7 +58,8 @@ function toFlowEdges(graphEdges: { id: string; source_id: string; target_id: str
     id: e.id,
     source: e.source_id,
     target: e.target_id,
-    label: e.type,
+    style: { stroke: '#475569', strokeWidth: 1 },
+    animated: e.type === 'owns',
   }));
 }
 
@@ -59,6 +87,7 @@ export function GraphPage() {
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [showNodeForm, setShowNodeForm] = useState(false);
   const [showEdgeForm, setShowEdgeForm] = useState(false);
+  const [layoutKey, setLayoutKey] = useState(0);
 
   useEffect(() => {
     void fetchNodes();
@@ -66,12 +95,13 @@ export function GraphPage() {
   }, [fetchNodes, fetchEdges]);
 
   useEffect(() => {
-    setFlowNodes(toFlowNodes(graphNodes));
-  }, [graphNodes, setFlowNodes]);
-
-  useEffect(() => {
-    setFlowEdges(toFlowEdges(graphEdges));
-  }, [graphEdges, setFlowEdges]);
+    const nodes = toFlowNodes(graphNodes);
+    const edges = toFlowEdges(graphEdges);
+    const layouted = applyDagreLayout(nodes, edges);
+    setFlowNodes(layouted);
+    setFlowEdges(edges);
+    setLayoutKey((k) => k + 1);
+  }, [graphNodes, graphEdges, setFlowNodes, setFlowEdges]);
 
   const handleNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
@@ -155,6 +185,7 @@ export function GraphPage() {
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 relative">
           <GraphCanvas
+            key={layoutKey}
             nodes={flowNodes}
             edges={flowEdges}
             nodeTypes={customNodeTypes}

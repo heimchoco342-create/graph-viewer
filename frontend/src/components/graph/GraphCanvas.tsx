@@ -44,6 +44,9 @@ export function GraphCanvas({
         onNodeClick={onNodeClick}
         onEdgeClick={onEdgeClick}
         fitView
+        fitViewOptions={{ padding: 0.05 }}
+        minZoom={0.1}
+        defaultEdgeOptions={{ type: 'smoothstep' }}
       >
         <Background />
         <Controls />
