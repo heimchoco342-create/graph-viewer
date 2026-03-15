@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { NODE_TYPE_BADGE_COLORS } from '../../constants/nodeTypes';
+import { useDomainStore } from '../../store/domainStore';
 
 export interface NodeOption {
   id: string;
@@ -22,6 +22,7 @@ export function NodeSearchInput({
   value,
   onChange,
 }: NodeSearchInputProps) {
+  const nodeTypeBadgeColors = useDomainStore((s) => s.nodeTypeBadgeColors)();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
@@ -152,7 +153,7 @@ export function NodeSearchInput({
           role="listbox"
         >
           {suggestions.map((node, idx) => {
-            const badgeColor = NODE_TYPE_BADGE_COLORS[node.type] ?? 'bg-gray-500';
+            const badgeColor = nodeTypeBadgeColors[node.type] ?? 'bg-gray-500';
             const isHighlighted = idx === highlightIndex;
             return (
               <li key={node.id} role="option" aria-selected={isHighlighted}>

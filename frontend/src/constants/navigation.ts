@@ -8,6 +8,7 @@ export const MENU_ITEMS: MenuItem[] = [
   { label: '그래프', icon: '🔗', path: '/' },
   { label: '업로드', icon: '📤', path: '/upload' },
   { label: '탐색', icon: '🔍', path: '/query' },
+  { label: '설정', icon: '⚙', path: '/settings' },
   { label: '로그', icon: '📋', path: '/logs' },
   { label: '도움말', icon: '❓', path: '/help' },
 ];

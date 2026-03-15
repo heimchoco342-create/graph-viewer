@@ -3,6 +3,7 @@ export interface GraphMeta {
   name: string;
   owner_id: string;
   scope: string;
+  template_id: string | null;
   created_at: string;
 }
 
@@ -68,3 +69,38 @@ export interface Suggestion {
   id: string;
   [key: string]: unknown;
 }
+
+// ── Workspace Template types ──────────────────────────────
+
+export interface LevelDefinition {
+  level: number;
+  node_type: string;
+  label: string;
+  color: string;
+  badge_color: string;
+  fixed: boolean;
+}
+
+export interface EdgeRule {
+  source_type: string;
+  target_type: string;
+}
+
+export interface WorkspaceTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  levels: LevelDefinition[];
+  edge_rules: EdgeRule[];
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Backward compat aliases (used by existing components) ──
+
+export type DomainNodeTypeOption = LevelDefinition;
+export type DomainNodeTypeGroup = { label: string; options: LevelDefinition[] };
+export type DomainEdgeTypeOption = EdgeRule;
+export type DomainEdgeTypeGroup = { label: string; options: EdgeRule[] };
+export type DomainConfig = WorkspaceTemplate;

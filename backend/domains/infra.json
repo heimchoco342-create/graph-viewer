@@ -1,0 +1,19 @@
+{
+  "name": "인프라",
+  "description": "Kubernetes 인프라 관리 (user → group → cluster → namespace → workload → pod)",
+  "levels": [
+    {"level": 0, "node_type": "user", "label": "사용자", "color": "#6366f1", "badge_color": "#818cf8", "fixed": true},
+    {"level": 1, "node_type": "group", "label": "그룹", "color": "#3b82f6", "badge_color": "#60a5fa", "fixed": true},
+    {"level": 2, "node_type": "cluster", "label": "클러스터", "color": "#326ce5", "badge_color": "#60a5fa", "fixed": false},
+    {"level": 3, "node_type": "namespace", "label": "네임스페이스", "color": "#475569", "badge_color": "#94a3b8", "fixed": false},
+    {"level": 4, "node_type": "workload", "label": "워크로드", "color": "#2563eb", "badge_color": "#60a5fa", "fixed": false},
+    {"level": 5, "node_type": "pod", "label": "파드", "color": "#059669", "badge_color": "#34d399", "fixed": false}
+  ],
+  "edge_rules": [
+    {"source_type": "group", "target_type": "user"},
+    {"source_type": "group", "target_type": "cluster"},
+    {"source_type": "cluster", "target_type": "namespace"},
+    {"source_type": "namespace", "target_type": "workload"},
+    {"source_type": "workload", "target_type": "pod"}
+  ]
+}

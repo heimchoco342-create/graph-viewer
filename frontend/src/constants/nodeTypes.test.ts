@@ -1,39 +1,75 @@
-import {
-  NODE_TYPE_GROUPS,
-  ALL_NODE_TYPE_OPTIONS,
-  NODE_TYPE_COLORS,
-  NODE_TYPE_BADGE_COLORS,
-} from './nodeTypes'
+import { useDomainStore } from '../store/domainStore'
+import type { DomainConfig } from '../types'
 
-describe('nodeTypes constants', () => {
-  it('has Organization and Kubernetes groups', () => {
-    const groupLabels = NODE_TYPE_GROUPS.map((g) => g.label)
-    expect(groupLabels).toContain('Organization')
-    expect(groupLabels).toContain('Kubernetes')
+const mockConfig: DomainConfig = {
+  name: 'default',
+  description: 'Test domain',
+  node_type_groups: [
+    {
+      label: 'Organization',
+      options: [
+        { value: 'person', label: 'Person', color: '#3b82f6', badge_color: 'bg-blue-500' },
+        { value: 'team', label: 'Team', color: '#8b5cf6', badge_color: 'bg-violet-500' },
+      ],
+    },
+    {
+      label: 'Kubernetes',
+      options: [
+        { value: 'k8s-pod', label: 'Pod', color: '#326ce5', badge_color: 'bg-blue-600' },
+      ],
+    },
+  ],
+  edge_type_groups: [
+    {
+      label: 'Organization',
+      options: [
+        { value: 'works_on', label: 'Works On' },
+      ],
+    },
+  ],
+  node_type_colors: { person: '#3b82f6', team: '#8b5cf6', 'k8s-pod': '#326ce5' },
+  node_type_badge_colors: { person: 'bg-blue-500', team: 'bg-violet-500', 'k8s-pod': 'bg-blue-600' },
+}
+
+describe('domainStore', () => {
+  beforeEach(() => {
+    useDomainStore.setState({ config: mockConfig, loading: false, error: null })
   })
 
-  it('Organization group has 6 types', () => {
-    const org = NODE_TYPE_GROUPS.find((g) => g.label === 'Organization')!
-    expect(org.options).toHaveLength(6)
+  afterEach(() => {
+    useDomainStore.setState({ config: null, loading: false, error: null })
   })
 
-  it('Kubernetes group has k8s-prefixed values', () => {
-    const k8s = NODE_TYPE_GROUPS.find((g) => g.label === 'Kubernetes')!
-    expect(k8s.options.length).toBeGreaterThanOrEqual(7)
-    k8s.options.forEach((opt) => {
-      expect(opt.value).toMatch(/^k8s-/)
-    })
+  it('returns node type groups from config', () => {
+    const groups = useDomainStore.getState().nodeTypeGroups()
+    expect(groups).toHaveLength(2)
+    expect(groups[0].label).toBe('Organization')
+    expect(groups[1].label).toBe('Kubernetes')
   })
 
-  it('ALL_NODE_TYPE_OPTIONS is flat list of all options', () => {
-    const totalFromGroups = NODE_TYPE_GROUPS.reduce((sum, g) => sum + g.options.length, 0)
-    expect(ALL_NODE_TYPE_OPTIONS).toHaveLength(totalFromGroups)
+  it('returns node type colors from config', () => {
+    const colors = useDomainStore.getState().nodeTypeColors()
+    expect(colors.person).toBe('#3b82f6')
+    expect(colors['k8s-pod']).toBe('#326ce5')
   })
 
-  it('every type has a color mapping', () => {
-    ALL_NODE_TYPE_OPTIONS.forEach((opt) => {
-      expect(NODE_TYPE_COLORS[opt.value]).toBeDefined()
-      expect(NODE_TYPE_BADGE_COLORS[opt.value]).toBeDefined()
-    })
+  it('returns node type badge colors from config', () => {
+    const badges = useDomainStore.getState().nodeTypeBadgeColors()
+    expect(badges.person).toBe('bg-blue-500')
+    expect(badges['k8s-pod']).toBe('bg-blue-600')
+  })
+
+  it('returns edge type groups from config', () => {
+    const groups = useDomainStore.getState().edgeTypeGroups()
+    expect(groups).toHaveLength(1)
+    expect(groups[0].options[0].value).toBe('works_on')
+  })
+
+  it('returns empty arrays when config not loaded', () => {
+    useDomainStore.setState({ config: null })
+    expect(useDomainStore.getState().nodeTypeGroups()).toEqual([])
+    expect(useDomainStore.getState().nodeTypeColors()).toEqual({})
+    expect(useDomainStore.getState().nodeTypeBadgeColors()).toEqual({})
+    expect(useDomainStore.getState().edgeTypeGroups()).toEqual([])
   })
 })

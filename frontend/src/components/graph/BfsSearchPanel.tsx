@@ -3,7 +3,7 @@ import { type Node, type Edge, useNodesState, useEdgesState } from '@xyflow/reac
 import { GraphCanvas } from './GraphCanvas';
 import { CircleNode } from './CircleNode';
 import { applyDagreLayout } from '../../pages/GraphPage';
-import { NODE_TYPE_COLORS } from '../../constants/nodeTypes';
+import { useDomainStore } from '../../store/domainStore';
 import { traverseGraph, type TraverseResult, getEmbedStatus, embedNodes, type EmbedStatus } from '../../api/search';
 import type { GraphNode, GraphEdge } from '../../types';
 
@@ -14,11 +14,11 @@ function shortLabel(name: string): string {
   return parts[parts.length - 1];
 }
 
-function toFlowNodes(graphNodes: GraphNode[]): Node[] {
+function toFlowNodes(graphNodes: GraphNode[], colorMap: Record<string, string>): Node[] {
   return graphNodes.map((n) => ({
     id: n.id,
     position: { x: 0, y: 0 },
-    data: { label: shortLabel(n.name), color: NODE_TYPE_COLORS[n.type] ?? '#6b7280', nodeType: n.type },
+    data: { label: shortLabel(n.name), color: colorMap[n.type] ?? '#6b7280', nodeType: n.type },
     type: 'circle',
   }));
 }
@@ -49,6 +49,7 @@ interface BfsSearchPanelProps {
 }
 
 export function BfsSearchPanel({ nodes, edges }: BfsSearchPanelProps) {
+  const nodeTypeColors = useDomainStore((s) => s.nodeTypeColors)();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<TraverseResult[]>([]);
   const [seedCount, setSeedCount] = useState(0);
@@ -65,13 +66,13 @@ export function BfsSearchPanel({ nodes, edges }: BfsSearchPanelProps) {
 
   // Build layout once from full graph data
   useEffect(() => {
-    const fn = toFlowNodes(nodes);
+    const fn = toFlowNodes(nodes, nodeTypeColors);
     const fe = toFlowEdges(edges);
     const layouted = applyDagreLayout(fn, fe);
     setFlowNodes(layouted);
     setFlowEdges(fe);
     setLayoutKey((k) => k + 1);
-  }, [nodes, edges, setFlowNodes, setFlowEdges]);
+  }, [nodes, edges, nodeTypeColors, setFlowNodes, setFlowEdges]);
 
   // Result node IDs by depth
   const resultMap = useMemo(() => {

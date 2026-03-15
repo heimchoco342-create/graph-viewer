@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useMemo } from 'react';
 import ForceGraph3D, { type ForceGraph3DInstance } from 'react-force-graph-3d';
-import { NODE_TYPE_COLORS } from '../../constants/nodeTypes';
+import { useDomainStore } from '../../store/domainStore';
 import * as THREE from 'three';
 
 export interface Graph3DNode {
@@ -36,6 +36,7 @@ export function Graph3DCanvas({
   onBackgroundClick,
   focusedNodeId,
 }: Graph3DCanvasProps) {
+  const nodeTypeColors = useDomainStore((s) => s.nodeTypeColors)();
   const fgRef = useRef<ForceGraph3DInstance | undefined>();
 
   const focusedConnectedIds = useMemo(() => {
@@ -94,7 +95,7 @@ export function Graph3DCanvas({
   const nodeThreeObject = useCallback(
     (node: object) => {
       const n = node as Graph3DNode;
-      const color = NODE_TYPE_COLORS[n.type] ?? '#6b7280';
+      const color = nodeTypeColors[n.type] ?? '#6b7280';
       const isActive = !focusedConnectedIds || focusedConnectedIds.has(n.id);
       const opacity = isActive ? 1 : 0.15;
       const size = n.type === 'organization' ? 5 : n.type === 'team' ? 4 : 3;

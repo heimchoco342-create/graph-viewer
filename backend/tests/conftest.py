@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import AsyncGenerator
 
 import pytest
@@ -10,8 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.db import Base, get_async_session
 
-# Use SQLite for tests
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+# PostgreSQL test database — set TEST_DATABASE_URL or fall back to local default
+TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/graph_viewer_test",
+)
 
 engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 TestSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

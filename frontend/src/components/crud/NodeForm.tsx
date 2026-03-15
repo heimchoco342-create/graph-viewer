@@ -1,7 +1,7 @@
 import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
 import { Button } from '../ui/Button'
-import { NODE_TYPE_GROUPS } from '../../constants/nodeTypes'
+import { useDomainStore } from '../../store/domainStore'
 
 export interface NodeFormData {
   label?: string
@@ -16,6 +16,8 @@ export interface NodeFormProps {
 }
 
 export function NodeForm({ initialData, onSubmit, onCancel }: NodeFormProps) {
+  const nodeTypeGroups = useDomainStore((s) => s.nodeTypeGroups)()
+
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <Input
@@ -26,7 +28,7 @@ export function NodeForm({ initialData, onSubmit, onCancel }: NodeFormProps) {
       />
       <Select
         label="타입"
-        options={NODE_TYPE_GROUPS}
+        options={nodeTypeGroups}
         value={initialData?.type}
         name="type"
       />

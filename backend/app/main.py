@@ -10,8 +10,9 @@ from app.config import get_settings
 from app.db import Base, engine, async_session_factory
 
 logger = logging.getLogger(__name__)
-from app.models import Node, Edge, User, Graph, Group, GroupMember, GraphPermission  # noqa: F401 — ensure models registered
+from app.models import Node, Edge, User, Graph, Group, GroupMember, GraphPermission, WorkspaceTemplate  # noqa: F401 — ensure models registered
 from app.routers.viewer import router as viewer_router
+from app.routers.templates import router as templates_router
 from app.routers.logs import router as logs_router, install_log_handler
 
 settings = get_settings()
@@ -33,6 +34,16 @@ async def _init_db() -> None:
             ))
         await conn.run_sync(Base.metadata.create_all)
 
+    # Seed default workspace templates
+    try:
+        from app.services.template_service import seed_default_templates
+        async with async_session_factory() as session:
+            seeded = await seed_default_templates(session)
+            if seeded:
+                logger.info("Startup: seeded %d default templates", len(seeded))
+    except Exception as e:
+        logger.warning("Startup template seed skipped: %s", e)
+
     # Backfill embeddings for nodes that don't have them yet
     try:
         from app.services.search_service import embed_all_nodes
@@ -44,6 +55,7 @@ async def _init_db() -> None:
         logger.warning("Startup embedding backfill skipped: %s", e)
 
 app.include_router(viewer_router)
+app.include_router(templates_router)
 app.include_router(logs_router)
 
 app.add_middleware(

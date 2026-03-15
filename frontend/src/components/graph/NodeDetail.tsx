@@ -1,6 +1,6 @@
 import { Card } from '../ui/Card'
 import { Badge } from '../ui/Badge'
-import { NODE_TYPE_BADGE_COLORS } from '../../constants/nodeTypes'
+import { useDomainStore } from '../../store/domainStore'
 
 export interface NodeDetailProps {
   id: string
@@ -17,6 +17,8 @@ export function NodeDetail({
   properties = {},
   onClose,
 }: NodeDetailProps) {
+  const nodeTypeBadgeColors = useDomainStore((s) => s.nodeTypeBadgeColors)()
+
   return (
     <Card title="노드 상세">
       <div className="flex flex-col gap-3">
@@ -31,7 +33,7 @@ export function NodeDetail({
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <Badge label={type} color={NODE_TYPE_BADGE_COLORS[type]} />
+          <Badge label={type} color={nodeTypeBadgeColors[type]} />
           <span className="text-xs text-text-muted">ID: {id}</span>
         </div>
         {Object.keys(properties).length > 0 && (

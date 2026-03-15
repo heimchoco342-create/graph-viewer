@@ -39,14 +39,15 @@ TOOLS = [
         "name": "read_memory",
         "description": (
             "Search stored memories using natural language. "
-            "Finds relevant memories by vector similarity (or keyword fallback), "
-            "then traverses connected memories automatically."
+            "Finds relevant memories by vector similarity + 1-hop edge drill-down. "
+            "When user_id is provided, scopes search to graphs accessible by that user."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "Natural language search query"},
                 "graph_id": {"type": "string", "description": "Limit search to a specific graph"},
+                "user_id": {"type": "string", "description": "Scope search to graphs accessible by this user"},
             },
             "required": ["query"],
         },
@@ -183,10 +184,12 @@ async def handle_tool_call(name: str, arguments: Dict[str, Any]) -> Any:
         # ── read_memory ──────────────────────────────────────
         if name == "read_memory":
             graph_id = uuid.UUID(arguments["graph_id"]) if arguments.get("graph_id") else None
+            user_id = uuid.UUID(arguments["user_id"]) if arguments.get("user_id") else None
             response = await search_graph(
                 session,
                 query=arguments["query"],
                 graph_id=graph_id,
+                user_id=user_id,
             )
             return {
                 "query": response.query,

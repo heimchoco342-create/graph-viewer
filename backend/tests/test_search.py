@@ -56,7 +56,7 @@ async def sample_graph(db_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_search_finds_seed_by_name(db_session: AsyncSession, sample_graph):
-    result = await search_graph(db_session, query="김철수", max_depth=0, seed_limit=5)
+    result = await search_graph(db_session, query="김철수", seed_limit=5)
     assert isinstance(result, SearchResponse)
     assert result.seed_count >= 1
     names = [r.name for r in result.results]
@@ -65,7 +65,7 @@ async def test_search_finds_seed_by_name(db_session: AsyncSession, sample_graph)
 
 @pytest.mark.asyncio
 async def test_search_finds_seed_by_type(db_session: AsyncSession, sample_graph):
-    result = await search_graph(db_session, query="person", max_depth=0, seed_limit=10)
+    result = await search_graph(db_session, query="person", seed_limit=10)
     names = [r.name for r in result.results]
     assert "김철수" in names
     assert "이영희" in names
@@ -73,29 +73,16 @@ async def test_search_finds_seed_by_type(db_session: AsyncSession, sample_graph)
 
 @pytest.mark.asyncio
 async def test_search_traverses_neighbors(db_session: AsyncSession, sample_graph):
-    """Search for '개발팀' with depth=2 should find team members and their tech."""
-    result = await search_graph(db_session, query="개발팀", max_depth=2, seed_limit=5)
+    """Search for '개발팀' should find team members via 1-hop expansion."""
+    result = await search_graph(db_session, query="개발팀", seed_limit=5)
     names = [r.name for r in result.results]
     assert "개발팀" in names
-    assert "김철수" in names or "이영희" in names  # 1-hop
-    # 2-hop should include tech nodes
-    assert "FastAPI" in names or "React" in names
-
-
-@pytest.mark.asyncio
-async def test_search_respects_max_depth(db_session: AsyncSession, sample_graph):
-    """Depth 0 = only seed nodes, no traversal."""
-    result = await search_graph(db_session, query="개발팀", max_depth=0, seed_limit=5)
-    names = [r.name for r in result.results]
-    assert "개발팀" in names
-    # Should NOT find tech nodes (2 hops away)
-    assert "FastAPI" not in names
-    assert "React" not in names
+    assert "김철수" in names or "이영희" in names  # 1-hop neighbors
 
 
 @pytest.mark.asyncio
 async def test_search_no_results(db_session: AsyncSession, sample_graph):
-    result = await search_graph(db_session, query="존재하지않는노드", max_depth=3)
+    result = await search_graph(db_session, query="존재하지않는노드")
     assert len(result.results) == 0
     assert result.seed_count == 0
 
@@ -103,7 +90,7 @@ async def test_search_no_results(db_session: AsyncSession, sample_graph):
 @pytest.mark.asyncio
 async def test_search_isolated_node(db_session: AsyncSession, sample_graph):
     """Isolated node found as seed but has no neighbors."""
-    result = await search_graph(db_session, query="고립노드", max_depth=3)
+    result = await search_graph(db_session, query="고립노드")
     names = [r.name for r in result.results]
     assert "고립노드" in names
     assert result.total_traversed == 1
@@ -111,7 +98,7 @@ async def test_search_isolated_node(db_session: AsyncSession, sample_graph):
 
 @pytest.mark.asyncio
 async def test_search_result_has_depth(db_session: AsyncSession, sample_graph):
-    result = await search_graph(db_session, query="알파테크", max_depth=3)
+    result = await search_graph(db_session, query="알파테크")
     depth_map = {r.name: r.depth for r in result.results}
     assert depth_map.get("알파테크") == 0  # seed
     if "개발팀" in depth_map:

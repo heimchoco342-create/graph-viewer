@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.db import Base
-from app.models import Node, Edge, User  # noqa: F401 - ensure models are registered
+from app.models import Node, Edge, User, WorkspaceTemplate  # noqa: F401 - ensure models are registered
 
 config = context.config
 if config.config_file_name is not None:

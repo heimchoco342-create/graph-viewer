@@ -8,7 +8,7 @@ import type { PathStep } from '../components/path/PathFinder';
 import { useAuthStore } from '../store/authStore';
 import { useGraphStore } from '../store/graphStore';
 import { usePathStore } from '../store/pathStore';
-import { NODE_TYPE_BADGE_COLORS } from '../constants/nodeTypes';
+import { useDomainStore } from '../store/domainStore';
 import { BfsSearchPanel } from '../components/graph/BfsSearchPanel';
 import { getMenuItemsWithActive, navigateByLabel } from '../constants/navigation';
 import type { GraphNode, GraphEdge } from '../types';
@@ -27,6 +27,7 @@ export function QueryPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
+  const nodeTypeBadgeColors = useDomainStore((s) => s.nodeTypeBadgeColors)();
   const {
     nodes,
     edges,
@@ -235,7 +236,7 @@ export function QueryPage() {
                       const edgeCount = edges.filter(
                         (e) => e.source_id === node.id || e.target_id === node.id,
                       ).length;
-                      const badgeColor = NODE_TYPE_BADGE_COLORS[node.type] ?? 'bg-gray-500';
+                      const badgeColor = nodeTypeBadgeColors[node.type] ?? 'bg-gray-500';
                       return (
                         <tr
                           key={node.id}
@@ -285,7 +286,7 @@ export function QueryPage() {
                   </button>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`${NODE_TYPE_BADGE_COLORS[selectedNode.type] ?? 'bg-gray-500'} text-white text-xs px-2 py-0.5 rounded-full`}>
+                  <span className={`${nodeTypeBadgeColors[selectedNode.type] ?? 'bg-gray-500'} text-white text-xs px-2 py-0.5 rounded-full`}>
                     {selectedNode.type}
                   </span>
                   <button
@@ -320,7 +321,7 @@ export function QueryPage() {
                           className="flex items-center gap-2 text-xs cursor-pointer hover:bg-bg-secondary rounded px-1 py-0.5"
                           onClick={() => setSelectedNodeId(e.node.id)}
                         >
-                          <span className={`${NODE_TYPE_BADGE_COLORS[e.node.type] ?? 'bg-gray-500'} text-white px-1.5 py-0.5 rounded-full`}>
+                          <span className={`${nodeTypeBadgeColors[e.node.type] ?? 'bg-gray-500'} text-white px-1.5 py-0.5 rounded-full`}>
                             {e.node.type}
                           </span>
                           <span className="text-text-primary">{e.node.name}</span>
@@ -342,7 +343,7 @@ export function QueryPage() {
                           className="flex items-center gap-2 text-xs cursor-pointer hover:bg-bg-secondary rounded px-1 py-0.5"
                           onClick={() => setSelectedNodeId(e.node.id)}
                         >
-                          <span className={`${NODE_TYPE_BADGE_COLORS[e.node.type] ?? 'bg-gray-500'} text-white px-1.5 py-0.5 rounded-full`}>
+                          <span className={`${nodeTypeBadgeColors[e.node.type] ?? 'bg-gray-500'} text-white px-1.5 py-0.5 rounded-full`}>
                             {e.node.type}
                           </span>
                           <span className="text-text-primary">{e.node.name}</span>
@@ -504,7 +505,7 @@ export function QueryPage() {
                 <div className="space-y-2">
                   {stats.typeCounts.map(([type, count]) => {
                     const pct = Math.round((count / nodes.length) * 100);
-                    const badgeColor = NODE_TYPE_BADGE_COLORS[type] ?? 'bg-gray-500';
+                    const badgeColor = nodeTypeBadgeColors[type] ?? 'bg-gray-500';
                     return (
                       <div key={type} className="flex items-center gap-2 text-xs">
                         <span className={`${badgeColor} text-white px-1.5 py-0.5 rounded-full min-w-[80px] text-center`}>
@@ -547,7 +548,7 @@ export function QueryPage() {
                 <div className="space-y-1">
                   {stats.topConnected.map(({ node, count }) => {
                     if (!node) return null;
-                    const badgeColor = NODE_TYPE_BADGE_COLORS[node.type] ?? 'bg-gray-500';
+                    const badgeColor = nodeTypeBadgeColors[node.type] ?? 'bg-gray-500';
                     return (
                       <div
                         key={node.id}

@@ -133,6 +133,7 @@ async def list_graphs(db: AsyncSession = Depends(get_async_session)):
             "name": g.name,
             "owner_id": str(g.owner_id) if g.owner_id else None,
             "scope": g.scope,
+            "template_id": str(g.template_id) if g.template_id else None,
             "created_at": str(g.created_at),
         }
         for g in graphs
@@ -153,6 +154,7 @@ async def get_graph_detail(graph_id: str, db: AsyncSession = Depends(get_async_s
             "name": graph.name,
             "owner_id": str(graph.owner_id) if graph.owner_id else None,
             "scope": graph.scope,
+            "template_id": str(graph.template_id) if graph.template_id else None,
             "created_at": str(graph.created_at),
         },
         "nodes": [_node_dict(n) for n in nodes],
@@ -190,7 +192,7 @@ async def search_nodes(q: str = "", db: AsyncSession = Depends(get_async_session
     return {"nodes": result, "total": len(result)}
 
 
-# ── Traverse (recursive CTE search) ─────────────────────────
+# ── Traverse (vector + 1-hop drill-down) ─────────────────────
 
 
 @router.get("/graph/traverse")
@@ -199,7 +201,7 @@ async def traverse_graph(
     graph_id: Optional[str] = None,
     db: AsyncSession = Depends(get_async_session),
 ):
-    """Search graph using recursive CTE + vector similarity (same as read_memory MCP tool)."""
+    """Search graph using vector similarity + 1-hop edge drill-down."""
     if not q.strip():
         return {"query": q, "seed_count": 0, "total_traversed": 0, "results": []}
     from app.services.search_service import search_graph
@@ -272,3 +274,4 @@ async def embed_status(
         "pending": total - embedded,
         "has_embedding_column": True,
     }
+

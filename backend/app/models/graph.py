@@ -33,6 +33,9 @@ class Graph(Base):
     group_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         Uuid, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True
     )
+    template_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid, ForeignKey("workspace_templates.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

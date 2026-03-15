@@ -13,6 +13,7 @@ from app.schemas.edge import EdgeResponse
 class GraphCreate(BaseModel):
     name: str = Field(..., max_length=255)
     scope: str = Field(default="org", max_length=50)
+    template_id: Optional[uuid.UUID] = None
 
 
 class GraphResponse(BaseModel):
@@ -20,6 +21,7 @@ class GraphResponse(BaseModel):
     name: str
     owner_id: uuid.UUID
     scope: str
+    template_id: Optional[uuid.UUID] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -12,7 +12,7 @@ import { Modal } from '../components/ui/Modal';
 import { useGraphStore } from '../store/graphStore';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { NODE_TYPE_COLORS } from '../constants/nodeTypes';
+import { useDomainStore } from '../store/domainStore';
 import { getMenuItemsWithActive, navigateByLabel } from '../constants/navigation';
 
 import Dagre from '@dagrejs/dagre';
@@ -92,11 +92,11 @@ export function applyDagreLayout(
   return [...layoutedOrphans, ...layoutedConnected];
 }
 
-function toFlowNodes(graphNodes: { id: string; name: string; type: string }[]): Node[] {
+function toFlowNodes(graphNodes: { id: string; name: string; type: string }[], colorMap: Record<string, string>): Node[] {
   return graphNodes.map((n) => ({
     id: n.id,
     position: { x: 0, y: 0 },
-    data: { label: shortLabel(n.name), color: NODE_TYPE_COLORS[n.type] ?? '#6b7280', nodeType: n.type },
+    data: { label: shortLabel(n.name), color: colorMap[n.type] ?? '#6b7280', nodeType: n.type },
     type: 'circle',
   }));
 }
@@ -117,6 +117,7 @@ export function GraphPage() {
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const nodeTypeColors = useDomainStore((s) => s.nodeTypeColors)();
   const {
     graphs,
     selectedGraphId,
@@ -155,13 +156,13 @@ export function GraphPage() {
   }, [graphs, selectedGraphId, selectGraph]);
 
   useEffect(() => {
-    const nodes = toFlowNodes(graphNodes);
+    const nodes = toFlowNodes(graphNodes, nodeTypeColors);
     const edges = toFlowEdges(graphEdges);
     const layouted = applyDagreLayout(nodes, edges);
     setFlowNodes(layouted);
     setFlowEdges(edges);
     setLayoutKey((k) => k + 1);
-  }, [graphNodes, graphEdges, setFlowNodes, setFlowEdges]);
+  }, [graphNodes, graphEdges, nodeTypeColors, setFlowNodes, setFlowEdges]);
 
   // Build set of connected node IDs for the focused node
   const connectedNodeIds = useMemo(() => {
@@ -401,7 +402,7 @@ export function GraphPage() {
           <span>
             타입: {Array.from(new Set(graphNodes.map((n) => n.type))).sort().map((t) => {
               const count = graphNodes.filter((n) => n.type === t).length;
-              const badgeColor = NODE_TYPE_COLORS[t] ?? '#6b7280';
+              const badgeColor = nodeTypeColors[t] ?? '#6b7280';
               return (
                 <span key={t} className="inline-flex items-center gap-1 mr-2">
                   <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: badgeColor }} />
