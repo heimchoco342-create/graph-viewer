@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getDomainConfig } from './domain';
+import { listTemplates } from './templates';
 import apiClient from './client';
 
 vi.mock('./client', () => ({
@@ -8,22 +8,26 @@ vi.mock('./client', () => ({
   },
 }));
 
-const mockResponse = {
-  name: 'default',
-  description: 'Test',
-  node_type_groups: [],
-  edge_type_groups: [],
-  node_type_colors: {},
-  node_type_badge_colors: {},
-};
+const mockTemplates = [
+  {
+    id: 'tpl-1',
+    name: 'default',
+    description: 'Test',
+    levels: [],
+    edge_rules: [],
+    created_by: null,
+    created_at: '2025-01-01',
+    updated_at: '2025-01-01',
+  },
+];
 
-describe('domain API', () => {
-  it('calls /api/domain/config', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue({ data: mockResponse });
+describe('templates API', () => {
+  it('calls /api/templates', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: mockTemplates });
 
-    const result = await getDomainConfig();
+    const result = await listTemplates();
 
-    expect(apiClient.get).toHaveBeenCalledWith('/api/domain/config');
-    expect(result).toEqual(mockResponse);
+    expect(apiClient.get).toHaveBeenCalledWith('/api/templates');
+    expect(result).toEqual(mockTemplates);
   });
 });

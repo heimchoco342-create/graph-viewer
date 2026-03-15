@@ -1,57 +1,48 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useDomainStore } from './domainStore'
-import type { DomainConfig } from '../types'
+import type { WorkspaceTemplate } from '../types'
 
-const mockConfig: DomainConfig = {
+const mockTemplate: WorkspaceTemplate = {
+  id: 'tpl-1',
   name: 'test',
   description: 'Test',
-  node_type_groups: [
-    {
-      label: 'Test',
-      options: [
-        { value: 'person', label: 'Person', color: '#3b82f6', badge_color: 'bg-blue-500' },
-      ],
-    },
+  levels: [
+    { level: 0, node_type: 'person', label: 'Person', color: '#3b82f6', badge_color: 'bg-blue-500', fixed: false },
   ],
-  edge_type_groups: [
-    {
-      label: 'Edges',
-      options: [{ value: 'works_on', label: 'Works On' }],
-    },
+  edge_rules: [
+    { source_type: 'person', target_type: 'person' },
   ],
-  node_type_colors: { person: '#3b82f6' },
-  node_type_badge_colors: { person: 'bg-blue-500' },
+  created_by: null,
+  created_at: '2025-01-01',
+  updated_at: '2025-01-01',
 }
 
-describe('domainStore', () => {
+describe('domainStore (templateStore compat)', () => {
   beforeEach(() => {
-    useDomainStore.setState({ config: null, loading: false, error: null })
+    useDomainStore.setState({ templates: [], activeTemplate: null, loading: false, error: null })
   })
 
-  it('returns empty defaults when no config loaded', () => {
+  it('returns empty defaults when no active template', () => {
     expect(useDomainStore.getState().nodeTypeGroups()).toEqual([])
     expect(useDomainStore.getState().nodeTypeColors()).toEqual({})
     expect(useDomainStore.getState().nodeTypeBadgeColors()).toEqual({})
-    expect(useDomainStore.getState().edgeTypeGroups()).toEqual([])
   })
 
-  it('returns config data when loaded', () => {
-    useDomainStore.setState({ config: mockConfig })
+  it('returns derived data when active template is set', () => {
+    useDomainStore.setState({ templates: [mockTemplate], activeTemplate: mockTemplate })
 
     expect(useDomainStore.getState().nodeTypeGroups()).toHaveLength(1)
     expect(useDomainStore.getState().nodeTypeColors()).toEqual({ person: '#3b82f6' })
     expect(useDomainStore.getState().nodeTypeBadgeColors()).toEqual({ person: 'bg-blue-500' })
-    expect(useDomainStore.getState().edgeTypeGroups()).toHaveLength(1)
   })
 
-  it('does not refetch if config already loaded', async () => {
-    useDomainStore.setState({ config: mockConfig })
+  it('does not refetch if templates already loaded', async () => {
+    useDomainStore.setState({ templates: [mockTemplate], activeTemplate: mockTemplate })
 
-    // fetchConfig should be a no-op when config exists
     await useDomainStore.getState().fetchConfig()
 
-    // Config should remain unchanged
-    expect(useDomainStore.getState().config).toEqual(mockConfig)
+    // Templates should remain unchanged (fetchConfig skips when templates exist)
+    expect(useDomainStore.getState().templates).toEqual([mockTemplate])
   })
 
   it('tracks loading state', () => {
