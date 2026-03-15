@@ -131,7 +131,7 @@ async def _get_engine():
         from sqlalchemy.ext.asyncio import create_async_engine
         db_url = os.environ.get(
             "DATABASE_URL",
-            "sqlite+aiosqlite:///./graph_mcp.db",
+            "postgresql+asyncpg://postgres:postgres@localhost:5432/graphviewer",
         )
         _engine = create_async_engine(db_url, echo=False)
         from app.db import Base

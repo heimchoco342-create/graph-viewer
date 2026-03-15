@@ -1,5 +1,7 @@
-"""Tests for the search_graph service (keyword fallback path on SQLite)."""
+"""Tests for the search_graph service (keyword fallback on PostgreSQL)."""
 from __future__ import annotations
+
+from unittest.mock import patch, AsyncMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.node import Node
 from app.models.edge import Edge
 from app.models.graph import Graph
+from app.models.user import User
 from app.services.search_service import search_graph, _node_to_text, SearchResponse
 
 
@@ -16,9 +19,11 @@ async def sample_graph(db_session: AsyncSession):
     알파테크(org) → 개발팀(team) → 김철수(person) → FastAPI(tech)
                                   → 이영희(person) → React(tech)
     """
-    import uuid
+    owner = User(email="search-test@test.com", password_hash="x", name="tester", role="user")
+    db_session.add(owner)
+    await db_session.flush()
 
-    graph = Graph(name="test-graph", owner_id=uuid.uuid4(), scope="org")
+    graph = Graph(name="test-graph", owner_id=owner.id, scope="org")
     db_session.add(graph)
     await db_session.flush()
 
@@ -54,9 +59,19 @@ async def sample_graph(db_session: AsyncSession):
     }
 
 
+# Mock _has_embedding_column to force keyword fallback path
+# (test DB has the column but nodes have no embeddings)
+_no_embeddings = patch(
+    "app.services.search_service._has_embedding_column",
+    new_callable=AsyncMock,
+    return_value=False,
+)
+
+
 @pytest.mark.asyncio
 async def test_search_finds_seed_by_name(db_session: AsyncSession, sample_graph):
-    result = await search_graph(db_session, query="김철수", seed_limit=5)
+    with _no_embeddings:
+        result = await search_graph(db_session, query="김철수", seed_limit=5)
     assert isinstance(result, SearchResponse)
     assert result.seed_count >= 1
     names = [r.name for r in result.results]
@@ -65,7 +80,8 @@ async def test_search_finds_seed_by_name(db_session: AsyncSession, sample_graph)
 
 @pytest.mark.asyncio
 async def test_search_finds_seed_by_type(db_session: AsyncSession, sample_graph):
-    result = await search_graph(db_session, query="person", seed_limit=10)
+    with _no_embeddings:
+        result = await search_graph(db_session, query="person", seed_limit=10)
     names = [r.name for r in result.results]
     assert "김철수" in names
     assert "이영희" in names
@@ -74,7 +90,8 @@ async def test_search_finds_seed_by_type(db_session: AsyncSession, sample_graph)
 @pytest.mark.asyncio
 async def test_search_traverses_neighbors(db_session: AsyncSession, sample_graph):
     """Search for '개발팀' should find team members via 1-hop expansion."""
-    result = await search_graph(db_session, query="개발팀", seed_limit=5)
+    with _no_embeddings:
+        result = await search_graph(db_session, query="개발팀", seed_limit=5)
     names = [r.name for r in result.results]
     assert "개발팀" in names
     assert "김철수" in names or "이영희" in names  # 1-hop neighbors
@@ -82,7 +99,8 @@ async def test_search_traverses_neighbors(db_session: AsyncSession, sample_graph
 
 @pytest.mark.asyncio
 async def test_search_no_results(db_session: AsyncSession, sample_graph):
-    result = await search_graph(db_session, query="존재하지않는노드")
+    with _no_embeddings:
+        result = await search_graph(db_session, query="존재하지않는노드")
     assert len(result.results) == 0
     assert result.seed_count == 0
 
@@ -90,7 +108,8 @@ async def test_search_no_results(db_session: AsyncSession, sample_graph):
 @pytest.mark.asyncio
 async def test_search_isolated_node(db_session: AsyncSession, sample_graph):
     """Isolated node found as seed but has no neighbors."""
-    result = await search_graph(db_session, query="고립노드")
+    with _no_embeddings:
+        result = await search_graph(db_session, query="고립노드")
     names = [r.name for r in result.results]
     assert "고립노드" in names
     assert result.total_traversed == 1
@@ -98,7 +117,8 @@ async def test_search_isolated_node(db_session: AsyncSession, sample_graph):
 
 @pytest.mark.asyncio
 async def test_search_result_has_depth(db_session: AsyncSession, sample_graph):
-    result = await search_graph(db_session, query="알파테크")
+    with _no_embeddings:
+        result = await search_graph(db_session, query="알파테크")
     depth_map = {r.name: r.depth for r in result.results}
     assert depth_map.get("알파테크") == 0  # seed
     if "개발팀" in depth_map:

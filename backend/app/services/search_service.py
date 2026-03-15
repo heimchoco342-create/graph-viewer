@@ -21,6 +21,16 @@ from app.services.embedding import get_embedding_service
 logger = logging.getLogger(__name__)
 
 
+def _pg_uuid_array_literal(ids: list[str]) -> str:
+    """Format a list of UUID strings as a PostgreSQL ARRAY constructor.
+
+    Returns SQL fragment like: ARRAY['uuid1','uuid2']::uuid[]
+    Safe to embed in SQL — values are validated UUIDs from our DB.
+    """
+    inner = ",".join(f"'{uid}'" for uid in ids)
+    return f"ARRAY[{inner}]::uuid[]"
+
+
 @dataclass
 class SearchResult:
     node_id: uuid.UUID
@@ -187,25 +197,25 @@ async def _search_with_vectors(
     # Step 2: 1-hop edge expansion from seeds
     if seed_ids:
         edge_graph_filter = "AND e.graph_id = ANY(:graph_ids)" if graph_ids else ""
+        seed_arr = _pg_uuid_array_literal(seed_ids)
         expand_sql = text(f"""
-        SELECT DISTINCT n.id, n.name, n.type, n.properties,
+        SELECT n.id, n.name, n.type, n.properties,
                CASE WHEN n.embedding IS NOT NULL
                     THEN 1 - (n.embedding <=> CAST(:query_vec AS vector))
                     ELSE 0.0
                END AS score
         FROM edges e
         JOIN nodes n ON n.id = CASE
-            WHEN e.source_id = ANY(:seed_ids::uuid[]) THEN e.target_id
+            WHEN e.source_id = ANY({seed_arr}) THEN e.target_id
             ELSE e.source_id
         END
-        WHERE (e.source_id = ANY(:seed_ids::uuid[]) OR e.target_id = ANY(:seed_ids::uuid[]))
-          AND n.id != ALL(:seed_ids::uuid[])
+        WHERE (e.source_id = ANY({seed_arr}) OR e.target_id = ANY({seed_arr}))
+          AND n.id != ALL({seed_arr})
           {edge_graph_filter}
         ORDER BY score DESC
         """)
 
         expand_params: dict = {
-            "seed_ids": seed_ids,
             "query_vec": str(query_embedding),
         }
         if graph_ids:
@@ -283,19 +293,20 @@ async def _search_with_keywords(
     # 1-hop expansion — batch fetch neighbors using ANY()
     if seed_ids:
         edge_graph_filter = "AND e.graph_id = :graph_id" if graph_id else ""
+        seed_arr = _pg_uuid_array_literal(seed_ids)
         expand_sql = text(f"""
-        SELECT DISTINCT n.id, n.name, n.type, n.properties
+        SELECT n.id, n.name, n.type, n.properties
         FROM edges e
         JOIN nodes n ON n.id = CASE
-            WHEN e.source_id = ANY(:seed_ids::uuid[]) THEN e.target_id
+            WHEN e.source_id = ANY({seed_arr}) THEN e.target_id
             ELSE e.source_id
         END
-        WHERE (e.source_id = ANY(:seed_ids::uuid[]) OR e.target_id = ANY(:seed_ids::uuid[]))
-          AND n.id != ALL(:seed_ids::uuid[])
+        WHERE (e.source_id = ANY({seed_arr}) OR e.target_id = ANY({seed_arr}))
+          AND n.id != ALL({seed_arr})
           {edge_graph_filter}
         """)
 
-        expand_params: dict = {"seed_ids": seed_ids}
+        expand_params: dict = {}
         if graph_id:
             expand_params["graph_id"] = str(graph_id)
 

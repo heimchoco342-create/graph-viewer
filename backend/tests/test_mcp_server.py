@@ -2,33 +2,17 @@ from __future__ import annotations
 
 """Tests for the MCP server — 6 tools: read_memory, create_memory, update_memory, delete_memory, create_link, delete_link."""
 
-import os
-import uuid
-
 import pytest
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-from app.db import Base
-
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-_test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-_TestSession = async_sessionmaker(_test_engine, class_=AsyncSession, expire_on_commit=False)
-
-
-@pytest_asyncio.fixture(autouse=True)
-async def setup_mcp_db():
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with _test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 @pytest.fixture(autouse=True)
-def patch_mcp_session(monkeypatch):
+def patch_mcp_session(monkeypatch, setup_db):
+    """Patch MCP server to use the test DB engine from conftest."""
+    _session_factory = async_sessionmaker(setup_db, class_=AsyncSession, expire_on_commit=False)
+
     async def mock_get_session():
-        return _TestSession()
+        return _session_factory()
 
     import mcp_server
     monkeypatch.setattr(mcp_server, "_get_session", mock_get_session)
@@ -179,7 +163,7 @@ async def test_read_memory_with_traversal():
 async def test_read_memory_no_results():
     from mcp_server import handle_tool_call
 
-    await handle_tool_call("create_memory", {"name": "Test", "type": "tech"})
+    # Empty DB — no nodes at all
     result = await handle_tool_call("read_memory", {"query": "존재하지않는노드"})
     assert result["seed_count"] == 0
     assert len(result["results"]) == 0

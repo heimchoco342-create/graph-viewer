@@ -3,7 +3,6 @@ from __future__ import annotations
 """Tests for the viewer REST API (read-only endpoints + auth)."""
 
 import pytest
-from tests.conftest import TestSessionLocal
 from app.services import graph_service
 
 
@@ -69,10 +68,9 @@ async def test_list_graphs_empty(client):
 
 
 @pytest.mark.asyncio
-async def test_list_nodes_with_data(client):
-    async with TestSessionLocal() as session:
-        await graph_service.create_node(session, type="person", name="Alice")
-        await graph_service.create_node(session, type="tech", name="FastAPI")
+async def test_list_nodes_with_data(client, db_session):
+    await graph_service.create_node(db_session, type="person", name="Alice")
+    await graph_service.create_node(db_session, type="tech", name="FastAPI")
 
     r = await client.get("/api/graph/nodes")
     assert r.status_code == 200
@@ -83,10 +81,9 @@ async def test_list_nodes_with_data(client):
 
 
 @pytest.mark.asyncio
-async def test_search_nodes(client):
-    async with TestSessionLocal() as session:
-        await graph_service.create_node(session, type="person", name="김철수")
-        await graph_service.create_node(session, type="tech", name="React")
+async def test_search_nodes(client, db_session):
+    await graph_service.create_node(db_session, type="person", name="김철수")
+    await graph_service.create_node(db_session, type="tech", name="React")
 
     r = await client.get("/api/graph/search", params={"q": "김"})
     assert r.status_code == 200
